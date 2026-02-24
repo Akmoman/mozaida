@@ -171,8 +171,8 @@
                             دخول للمزايدة
                         </button>
                     </form>
-                    <button type="button" id="btn-show-register" class="w-full mt-4 text-sm font-semibold text-emerald-700 hover:text-emerald-900 transition-colors underline">
-                        ليس لديك عضوية؟ طلب فتح عضوية جديدة
+                    <button type="button" id="btn-show-register" class="w-full mt-4 text-base font-bold text-emerald-800 hover:text-emerald-900 transition-colors bg-emerald-100 hover:bg-emerald-200 py-3 rounded-lg">
+                        ليس لديك حساب؟ الحصول على العضوية
                     </button>
                 </div>
                 
@@ -198,8 +198,8 @@
                             إرسال الطلب للإدارة
                         </button>
                     </form>
-                    <button type="button" id="btn-show-login" class="w-full mt-4 text-sm font-semibold text-stone-500 hover:text-stone-800 transition-colors underline">
-                        لديك عضوية وحصلت على رقم سري؟ تسجيل الدخول
+                    <button type="button" id="btn-show-login" class="w-full mt-4 text-base font-bold text-stone-700 hover:text-stone-900 transition-colors bg-stone-200 hover:bg-stone-300 py-3 rounded-lg">
+                        لديك عضوية ورقم سري؟ تسجيل الدخول
                     </button>
                 </div>
 
@@ -315,7 +315,7 @@
         let auctionSettings = { isActive: true };
         let currentBidAmount = 5;
         let adminTab = 'bids'; // 'bids' or 'users'
-        let currentAuthView = 'register'; // 'register' or 'login'
+        let currentAuthView = 'login'; // اجعل شاشة الدخول هي الافتراضية بدلاً من التسجيل
 
         // DOM Elements
         const loadingOverlay = document.getElementById('loading-overlay');
