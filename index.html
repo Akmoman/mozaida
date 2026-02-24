@@ -149,7 +149,7 @@
             <!-- Dynamic Action Area -->
             <div class="p-6 border-b border-stone-100">
 
-                <!-- State 0: Login Form (New) -->
+                <!-- State 0: Login Form -->
                 <div id="section-login" class="max-w-md mx-auto hidden">
                     <div class="text-center mb-6">
                         <i class="ph ph-sign-in text-4xl text-emerald-600 mx-auto mb-2 block"></i>
@@ -203,7 +203,7 @@
                     </button>
                 </div>
 
-                <!-- State 2: Pending Approval (New Clean Minimal Look) -->
+                <!-- State 2: Pending Approval -->
                 <div id="section-pending" class="hidden">
                     <div class="bg-emerald-50 p-6 rounded-xl border border-emerald-200 text-center max-w-md mx-auto shadow-sm">
                         <i class="ph ph-check-circle text-5xl text-emerald-500 mx-auto mb-3 block"></i>
@@ -314,8 +314,8 @@
         let users = [];
         let auctionSettings = { isActive: true };
         let currentBidAmount = 5;
-        let adminTab = 'bids'; // 'bids' or 'users'
-        let currentAuthView = 'login'; // اجعل شاشة الدخول هي الافتراضية بدلاً من التسجيل
+        let adminTab = 'bids'; 
+        let currentAuthView = 'login'; 
 
         // DOM Elements
         const loadingOverlay = document.getElementById('loading-overlay');
@@ -335,7 +335,6 @@
             if (localGuestUid) {
                 currentUser = { uid: localGuestUid };
                 setupListeners(currentUser.uid);
-                // Call anonymous auth in background just to have a valid token if needed
                 try { await signInAnonymously(auth); } catch(e) {}
                 return;
             }
@@ -355,7 +354,7 @@
             }
         };
 
-        // Auth Listener - strictly prioritize local guest ID if we have custom login system
+        // Auth Listener
         let localGuestUidForListener = localStorage.getItem('guest_auction_uid');
         onAuthStateChanged(auth, (user) => {
             if (localGuestUidForListener) {
@@ -385,7 +384,6 @@
                     appProfile = null;
                 }
                 
-                // If admin, start listening to users if not already
                 if (appProfile?.isAdmin && !unsubUsers) {
                     const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
                     unsubUsers = onSnapshot(usersRef, (snap) => {
@@ -401,7 +399,7 @@
                 updateUIVisibility();
                 loadingOverlay.classList.add('hidden');
             }, (error) => {
-                console.error("Firestore Permission Error: Make sure your Firestore rules allow read/write.", error);
+                console.error("Firestore Permission Error", error);
                 loadingOverlay.classList.add('hidden');
             });
 
@@ -411,12 +409,11 @@
                 bids = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 bids.sort((a, b) => b.amount - a.amount);
                 
-                // Sync bid amount
                 const highestBid = bids.length > 0 ? bids[0].amount : 0;
                 if (currentBidAmount < highestBid + 5) {
                     currentBidAmount = highestBid + 5;
                 } else if (bids.length === 0) {
-                    currentBidAmount = 5; // إعادة ضبط المبلغ عند تصفير المزاد
+                    currentBidAmount = 5; 
                 }
                 
                 renderBids();
@@ -440,7 +437,6 @@
         // --- Core UI Updates ---
 
         function updateUIVisibility() {
-            // Header Info - Strictly hidden unless ACTIVE and APPROVED
             if (appProfile && appProfile.isActive === true) {
                 userInfoBadge.classList.remove('hidden');
                 userInfoBadge.classList.add('flex');
@@ -459,7 +455,6 @@
                 btnShowAdminLogin.classList.remove('hidden');
             }
 
-            // Action Area
             sectionRegister.classList.add('hidden');
             sectionLogin.classList.add('hidden');
             sectionPending.classList.add('hidden');
@@ -469,19 +464,15 @@
             if (!auctionSettings.isActive) {
                 document.getElementById('auction-closed-msg').classList.remove('hidden');
             } else {
-                // الشروط الصارمة لإظهار الواجهة
                 if (!appProfile) {
-                    // زائر جديد تماماً
                     if (currentAuthView === 'login') {
                         sectionLogin.classList.remove('hidden');
                     } else {
                         sectionRegister.classList.remove('hidden');
                     }
-                } else if (appProfile.isActive === true) {
-                    // عضو مفعل ومقبول حصراً من الإدارة
+                } else if (appProfile.isActive === true && !appProfile.isAdmin) {
                     sectionBidding.classList.remove('hidden');
-                } else {
-                    // مسجل ولم تقبله الإدارة بعد
+                } else if (!appProfile.isAdmin) {
                     if (currentAuthView === 'login') {
                         sectionLogin.classList.remove('hidden');
                     } else {
@@ -490,7 +481,6 @@
                 }
             }
 
-            // Admin Dashboard
             if (appProfile?.isAdmin) {
                 adminDashboard.classList.remove('hidden');
             } else {
@@ -564,7 +554,6 @@
         function renderAdminPanel() {
             if (!appProfile?.isAdmin) return;
 
-            // Update Toggle Button Text
             const btnToggleAuction = document.getElementById('btn-toggle-auction');
             if (auctionSettings.isActive) {
                 btnToggleAuction.innerHTML = '<i class="ph ph-lock-key"></i> إغلاق المزاد';
@@ -574,13 +563,11 @@
                 btnToggleAuction.className = 'px-4 py-1.5 rounded-lg text-sm font-bold transition-colors bg-green-500 hover:bg-green-600 text-white flex items-center gap-1 shadow-sm border border-green-600';
             }
 
-            // Update Tabs
             const tabBids = document.getElementById('tab-bids');
             const tabUsers = document.getElementById('tab-users');
             const listBids = document.getElementById('admin-bids-list');
             const listUsers = document.getElementById('admin-users-list');
 
-            // إخفاء المدراء من القائمة لحل مشكلة تكرار الإدارة
             const normalUsers = users.filter(u => !u.isAdmin);
             const pendingCount = normalUsers.filter(u => !u.isActive).length;
             document.getElementById('pending-users-count').textContent = pendingCount;
@@ -591,7 +578,6 @@
                 listBids.classList.remove('hidden');
                 listUsers.classList.add('hidden');
 
-                // Render Bids
                 listBids.innerHTML = '';
                 
                 if (bids.length > 0) {
@@ -634,7 +620,6 @@
                 listUsers.classList.remove('hidden');
                 listBids.classList.add('hidden');
 
-                // Render Users
                 listUsers.innerHTML = '';
                 if (normalUsers.length === 0) {
                     listUsers.innerHTML = `<p class="text-center text-stone-500 py-4">لا يوجد أعضاء مسجلين.</p>`;
@@ -675,7 +660,6 @@
 
         // --- Event Listeners & Actions ---
 
-        // Toggle Auth View (Login vs Register)
         document.getElementById('btn-show-login').addEventListener('click', () => {
             currentAuthView = 'login';
             updateUIVisibility();
@@ -719,7 +703,7 @@
             }
         });
 
-        // Custom Login Form Logic
+        // Login
         document.getElementById('form-login').addEventListener('submit', async (e) => {
             e.preventDefault();
             const phone = document.getElementById('login-phone').value;
@@ -727,28 +711,26 @@
             const errorEl = document.getElementById('login-error');
 
             try {
-                // جلب قائمة الأعضاء للبحث عن التطابق (طريقة آمنة لتجنب مشاكل الفهرسة في Firebase)
                 const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
                 const snapshot = await getDocs(usersRef);
                 let foundUser = null;
 
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
-                    if (data.phone === phone && data.password === pass) {
+                    if (data.phone === phone && data.password === pass && !data.isAdmin) {
                         foundUser = data;
                     }
                 });
 
                 if (foundUser) {
-                    if (!foundUser.isActive && !foundUser.isAdmin) {
+                    if (!foundUser.isActive) {
                         errorEl.querySelector('span').textContent = 'حسابك محظور من قبل الإدارة.';
                         errorEl.classList.remove('hidden');
                         return;
                     }
                     
-                    // تم تسجيل الدخول بنجاح!
                     localStorage.setItem('guest_auction_uid', foundUser.uid);
-                    window.location.reload(); // إعادة تحميل الصفحة لتطبيق الحساب
+                    window.location.reload(); 
                 } else {
                     errorEl.querySelector('span').textContent = 'رقم الهاتف أو الرقم السري غير صحيح.';
                     errorEl.classList.remove('hidden');
@@ -760,26 +742,19 @@
             }
         });
 
-        // User Logout
-        document.getElementById('btn-user-logout').addEventListener('click', async () => {
+        // Logout
+        document.getElementById('btn-user-logout').addEventListener('click', () => {
             localStorage.removeItem('guest_auction_uid');
-            try { await auth.signOut(); } catch(e) {}
             window.location.reload();
         });
 
-        // Cancel Registration (And WIPE Session to test as fresh user)
-        document.getElementById('btn-cancel-reg').addEventListener('click', async () => {
-            if (!currentUser) return;
-            try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.uid));
-                localStorage.removeItem('guest_auction_uid');
-                window.location.reload(); 
-            } catch (err) {
-                console.error(err);
-            }
+        // Safe Cancel/Switch to Register (DOES NOT DELETE DOC ANYMORE!)
+        document.getElementById('btn-cancel-reg').addEventListener('click', () => {
+            localStorage.removeItem('guest_auction_uid');
+            window.location.reload(); 
         });
 
-        // Bidding Actions (+ / - / Submit)
+        // Bidding Actions
         document.getElementById('btn-increase-bid').addEventListener('click', () => {
             currentBidAmount += 5;
             updateBidUI();
@@ -826,7 +801,7 @@
             }
         });
 
-        // Admin Login Modal Toggles
+        // Admin Auth Modal
         const adminModal = document.getElementById('admin-login-modal');
         btnShowAdminLogin.addEventListener('click', () => {
             adminModal.classList.remove('hidden');
@@ -839,7 +814,7 @@
             document.getElementById('admin-password').value = '';
         });
 
-        // Admin Login Form
+        // Admin Secure Login (Separate UID!)
         document.getElementById('form-admin-login').addEventListener('submit', async (e) => {
             e.preventDefault();
             const pass = document.getElementById('admin-password').value;
@@ -847,19 +822,18 @@
 
             if (pass === 'akm1983') {
                 try {
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.uid), {
-                        uid: currentUser.uid,
-                        name: appProfile?.name || 'akm1983',
-                        phone: appProfile?.phone || '-',
-                        isActive: true, // الإدارة دائماً فعالة
+                    const adminUid = 'admin-akm1983-secure-uid'; // حساب إدارة ثابت ومنفصل تماماً
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', adminUid), {
+                        uid: adminUid,
+                        name: 'الإدارة',
+                        phone: '-',
+                        isActive: true,
                         isAdmin: true,
                         registeredAt: serverTimestamp()
                     }, { merge: true });
                     
-                    adminModal.classList.add('hidden');
-                    adminModal.classList.remove('flex');
-                    document.getElementById('admin-password').value = '';
-                    errorEl.classList.add('hidden');
+                    localStorage.setItem('guest_auction_uid', adminUid);
+                    window.location.reload();
                 } catch (err) {
                     errorEl.textContent = 'حدث خطأ في النظام.';
                     errorEl.classList.remove('hidden');
@@ -870,7 +844,6 @@
             }
         });
 
-        // Admin Dashboard Controls
         document.getElementById('tab-bids').addEventListener('click', () => {
             adminTab = 'bids';
             renderAdminPanel();
@@ -887,36 +860,29 @@
                 const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'auction');
                 await setDoc(settingsRef, { isActive: newState }, { merge: true });
             } catch (err) {
-                console.error("Error toggling auction status:", err);
-                alert("حدث خطأ أثناء محاولة تغيير حالة المزاد. يرجى التأكد من صلاحيات قاعدة البيانات.");
+                alert("حدث خطأ أثناء محاولة تغيير حالة المزاد.");
             }
         });
 
-        // مسح الذاكرة بالكامل عند خروج المدير لمنع التداخل
-        document.getElementById('btn-exit-admin').addEventListener('click', async () => {
-            if (!currentUser || !appProfile) return;
-            try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.uid));
-                localStorage.removeItem('guest_auction_uid');
-                window.location.reload();
-            } catch (err) {
-                console.error(err);
-            }
+        // Admin Safe Exit
+        document.getElementById('btn-exit-admin').addEventListener('click', () => {
+            localStorage.removeItem('guest_auction_uid');
+            window.location.reload();
         });
 
-        // Expose admin functions to global window object for inline HTML onclick handlers
+        // Window Expose Functions
         window.toggleUserActivation = async (userId, currentState) => {
             try {
                 const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', userId);
-                if (!currentState) { // قبول العضو وتعيين رقم سري
+                if (!currentState) { 
                     const pwd = prompt('أدخل رقماً سرياً (كلمة مرور) لتعطيه لهذا العضو ليتمكن من الدخول لاحقاً:\n(مثال: 1234)');
-                    if (pwd === null) return; // تم الإلغاء
+                    if (pwd === null) return; 
                     if (pwd.trim() === '') {
                         alert('يجب إدخال رقم سري لكي يتمكن العضو من الدخول لاحقاً!');
                         return;
                     }
                     await updateDoc(userRef, { isActive: true, password: pwd.trim() });
-                } else { // حظر العضو
+                } else { 
                     await updateDoc(userRef, { isActive: false });
                 }
             } catch (err) {
@@ -925,6 +891,7 @@
         };
 
         window.handleDeleteUser = async (userId) => {
+            if(!confirm('هل أنت متأكد من رفض العضو وحذف بياناته؟')) return;
             try {
                 await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', userId));
             } catch (err) {
