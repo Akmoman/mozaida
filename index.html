@@ -169,7 +169,7 @@
                             <input type="password" id="login-password" required class="w-full border border-stone-300 rounded-lg p-3 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="••••" dir="ltr" />
                         </div>
                         <p id="login-error" class="text-red-500 text-sm flex items-center gap-1 hidden bg-red-50 p-3 rounded-lg border border-red-200"><i class="ph ph-warning-circle text-lg"></i> <span></span></p>
-                        <button type="submit" class="w-full bg-stone-800 hover:bg-stone-900 text-white font-bold py-3 rounded-lg transition-colors shadow-sm">
+                        <button type="submit" class="w-full bg-stone-800 hover:bg-black text-white font-bold py-3 rounded-lg transition-colors shadow-sm">
                             دخول للمزايدة
                         </button>
                     </form>
@@ -237,14 +237,14 @@
                         <p id="bid-error" class="text-red-500 text-sm mb-2 text-center hidden"></p>
                         <div class="flex flex-col gap-4">
                             <div class="flex items-center justify-between bg-white rounded-xl border-2 border-stone-300 overflow-hidden shadow-inner">
-                                <button type="button" id="btn-increase-bid" class="bg-stone-100 hover:bg-stone-200 text-stone-700 p-4 text-3xl font-bold transition-colors w-16 flex justify-center items-center">
-                                    +
+                                <button type="button" id="btn-decrease-bid" class="bg-stone-100 hover:bg-stone-200 text-stone-700 p-4 text-3xl font-bold transition-colors w-16 flex justify-center items-center">
+                                    -
                                 </button>
                                 <div class="text-3xl font-bold text-emerald-800 flex-1 text-center tabular-nums">
                                     <span id="current-bid-input-display">5</span> <span class="text-lg text-stone-500 font-medium">ريال</span>
                                 </div>
-                                <button type="button" id="btn-decrease-bid" class="bg-stone-100 hover:bg-stone-200 text-stone-700 p-4 text-3xl font-bold transition-colors w-16 flex justify-center items-center">
-                                    -
+                                <button type="button" id="btn-increase-bid" class="bg-stone-100 hover:bg-stone-200 text-stone-700 p-4 text-3xl font-bold transition-colors w-16 flex justify-center items-center">
+                                    +
                                 </button>
                             </div>
                             <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-md transition-all active:scale-95 text-lg">
@@ -491,7 +491,7 @@
                     } else {
                         // حساب مفعل لكن لم يسجل دخوله بعد بالرقم السري
                         sectionLogin.classList.remove('hidden');
-                        showToast('تم تفعيل حسابك، يرجى تسجيل الدخول بالرقم السري.');
+                        // showToast('تم تفعيل حسابك، يرجى تسجيل الدخول بالرقم السري.');
                     }
                 } else {
                     // مسجل ولم تقبله الإدارة بعد أو محظور
@@ -677,7 +677,12 @@
                         `;
                     } else {
                         actionButtons = `
-                            <button onclick="window.toggleUserActivation('${u.id}', ${u.isActive})" class="px-3 py-1 rounded text-sm font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200">حظر</button>
+                            <div class="flex flex-col gap-2">
+                                <button onclick="window.sendWhatsApp('${u.phone}', '${u.name}', '${u.password}')" class="px-3 py-1 rounded text-sm font-bold bg-green-500 text-white hover:bg-green-600 transition-colors flex items-center justify-center gap-1">
+                                    <i class="ph ph-whatsapp-logo text-lg"></i> واتساب
+                                </button>
+                                <button onclick="window.toggleUserActivation('${u.id}', ${u.isActive})" class="px-3 py-1 rounded text-sm font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200">حظر</button>
+                            </div>
                         `;
                     }
 
@@ -744,9 +749,8 @@
                 
                 // حفظ الـ UID في المتصفح لمراقبة الطلب
                 localStorage.setItem('guest_auction_uid', tempUid);
-                localStorage.setItem('is_authenticated', 'false'); // العضو الجديد ليس مسجلاً بالجلسة
+                localStorage.setItem('is_authenticated', 'false'); 
                 
-                // تحديث المتغير المحلي
                 currentUser = { uid: tempUid };
                 setupListeners(tempUid);
                 
@@ -783,7 +787,6 @@
                         return;
                     }
                     
-                    // تم تسجيل الدخول بنجاح وتوثيق الجلسة
                     localStorage.setItem('guest_auction_uid', foundUser.uid);
                     localStorage.setItem('is_authenticated', 'true');
                     window.location.reload(); 
@@ -806,7 +809,7 @@
             window.location.reload();
         });
 
-        // "تسجيل عضو جديد" - لم يعد يحذف البيانات، فقط يفتح نموذجاً جديداً
+        // "تسجيل عضو جديد"
         document.getElementById('btn-cancel-reg').addEventListener('click', () => {
             localStorage.removeItem('guest_auction_uid');
             localStorage.removeItem('is_authenticated');
@@ -944,12 +947,33 @@
                         return;
                     }
                     await updateDoc(userRef, { isActive: true, password: pwd.trim() });
+                    
+                    // البحث عن بيانات المستخدم لإرسال واتساب
+                    const found = users.find(u => u.id === userId);
+                    if (found) {
+                        if (confirm('تم التفعيل. هل تريد إرسال الرقم السري للعضو عبر الواتساب؟')) {
+                            window.sendWhatsApp(found.phone, found.name, pwd.trim());
+                        }
+                    }
                 } else { 
                     await updateDoc(userRef, { isActive: false });
                 }
             } catch (err) {
                 console.error(err);
             }
+        };
+
+        window.sendWhatsApp = (phone, name, password) => {
+            // تنظيف رقم الهاتف (إزالة المسافات والأصفار البادئة إذا وجدت لإضافة مفتاح الدولة 968)
+            let cleanPhone = phone.replace(/\s+/g, '');
+            if (!cleanPhone.startsWith('968') && cleanPhone.length === 8) {
+                cleanPhone = '968' + cleanPhone;
+            }
+            
+            const message = `مرحباً بك الفاضل/ ${name}،%0Aلقد تم تفعيل عضويتك في مزاد أوقاف المساجد بنجاح.%0A%0Aبيانات الدخول الخاصة بك:%0Aرقم الهاتف: ${phone}%0Aالرقم السري: ${password}%0A%0Aيمكنك الآن الدخول والمزايدة عبر الرابط.%0Aشكراً لك.`;
+            
+            const url = `https://wa.me/${cleanPhone}?text=${message}`;
+            window.open(url, '_blank');
         };
 
         window.handleDeleteUser = async (userId) => {
