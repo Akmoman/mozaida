@@ -7,46 +7,60 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- html2pdf for Arabic PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
-        /* Custom Scrollbar for Admin Panel */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f5f5f4; 
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #d6d3d1; 
-            border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #a8a29e; 
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@100;400;700;900&display=swap');
+        
+        body { font-family: 'Noto Sans Arabic', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f5f5f4; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        
+        #report-template { display: none; padding: 20px; background: white; direction: rtl; }
+        .report-header { text-align: center; border-bottom: 2px solid #065f46; margin-bottom: 20px; padding-bottom: 10px; }
+        .report-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .report-table th, .report-table td { border: 1px solid #d1d5db; padding: 10px; text-align: center; font-size: 12px; }
+        .report-table th { background-color: #f3f4f6; color: #065f46; font-weight: bold; }
+
+        .countdown-box {
+            background: linear-gradient(135deg, #065f46 0%, #064e3b 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
-<body class="min-h-screen bg-stone-100 font-sans text-stone-800">
+<body class="min-h-screen bg-stone-100 text-stone-800">
 
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="fixed inset-0 bg-green-50 z-50 flex items-center justify-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700"></div>
+        <div class="flex flex-col items-center gap-4">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700"></div>
+            <p id="loading-text" class="text-emerald-800 font-bold">جاري الاتصال بقاعدة البيانات...</p>
+        </div>
     </div>
 
     <!-- Header -->
-    <header class="bg-emerald-800 text-white p-4 shadow-md sticky top-0 z-40">
+    <header class="bg-emerald-800 text-white p-4 shadow-md sticky top-0 z-40 border-b border-emerald-900">
         <div class="max-w-4xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-2">
                 <i class="ph ph-gavel text-2xl"></i>
-                <h1 class="text-xl font-bold">لجنة أوقاف المساجد - بلدة منال</h1>
+                <h1 class="text-xl font-bold tracking-tight">لجنة أوقاف المساجد - بلدة منال</h1>
             </div>
             <div class="flex items-center gap-3">
                 <div id="user-info-badge" class="hidden items-center gap-2 text-sm bg-emerald-900/50 pl-1 pr-3 py-1 rounded-full border border-white/10">
                     <i class="ph ph-user text-base"></i>
                     <span id="header-user-name"></span>
-                    <span id="header-admin-badge" class="hidden bg-amber-500 text-black px-2 py-0.5 rounded text-xs mr-2 font-bold">إدارة</span>
+                    <span id="header-role-badge" class="hidden bg-amber-500 text-black px-2 py-0.5 rounded text-[10px] font-black mr-1 uppercase"></span>
                     <button id="btn-user-logout" class="mr-3 text-emerald-200 hover:text-white flex items-center gap-1 bg-emerald-900/40 px-2 py-1 rounded-lg transition-colors" title="تسجيل الخروج">
                         <i class="ph ph-sign-out text-base"></i> خروج
                     </button>
@@ -60,33 +74,93 @@
 
     <main class="max-w-4xl mx-auto p-4 py-8 space-y-6">
         
-        <!-- Admin Controls (Hidden by default) -->
-        <div id="admin-dashboard" class="hidden bg-stone-800 text-white rounded-xl shadow-lg overflow-hidden border border-stone-700">
-            <div class="p-4 border-b border-stone-700 flex justify-between items-center bg-stone-900">
-                <h2 class="font-bold flex items-center gap-2"><i class="ph ph-gear text-xl"></i> لوحة تحكم الإدارة</h2>
+        <!-- Admin/Committee Controls -->
+        <div id="admin-dashboard" class="hidden bg-stone-900 text-white rounded-2xl shadow-xl overflow-hidden border border-stone-700">
+            <div class="p-4 border-b border-stone-700 flex justify-between items-center bg-stone-800">
+                <h2 id="dashboard-title" class="font-bold flex items-center gap-2 text-emerald-400"><i class="ph ph-gear text-xl"></i> لوحة التحكم</h2>
                 <div class="flex gap-2">
-                    <button id="btn-exit-admin" class="px-4 py-1.5 rounded-lg text-sm font-bold transition-colors bg-stone-700 hover:bg-stone-600 text-white flex items-center gap-1">
-                        <i class="ph ph-house text-base"></i> الرئيسية
-                    </button>
-                    <button id="btn-toggle-auction" class="px-4 py-1.5 rounded-lg text-sm font-bold transition-colors bg-red-500 hover:bg-red-600 text-white">
-                        إغلاق المزاد
+                    <button id="btn-exit-admin" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-stone-700 hover:bg-stone-600 text-white flex items-center gap-1 transition-all">
+                        <i class="ph ph-house"></i> الرئيسية
                     </button>
                 </div>
             </div>
-            <div class="flex bg-stone-800">
-                <button id="tab-bids" class="flex-1 p-3 font-semibold transition-colors bg-stone-700 text-emerald-400">
-                    سجل المزايدات
-                </button>
-                <button id="tab-users" class="flex-1 p-3 font-semibold transition-colors hover:bg-stone-700">
-                    إدارة الأعضاء (<span id="pending-users-count">0</span> بانتظار التفعيل)
-                </button>
+            <div class="flex bg-stone-800 flex-wrap" id="dashboard-tabs-container">
+                <button id="tab-bids" class="flex-1 min-w-[120px] p-3 font-bold transition-colors">سجل المزايدات</button>
+                <button id="tab-users" class="flex-1 min-w-[120px] p-3 font-bold transition-colors">الأعضاء</button>
+                <button id="tab-settings" class="flex-1 min-w-[120px] p-3 font-bold transition-colors">إعدادات المزاد</button>
+                <button id="tab-add-manual" class="flex-1 min-w-[120px] p-3 font-bold transition-colors">إضافة يدوية</button>
             </div>
             
-            <div class="p-4 bg-stone-50 max-h-96 overflow-y-auto text-stone-800 custom-scrollbar">
+            <div class="p-4 bg-stone-50 max-h-[500px] overflow-y-auto text-stone-800 custom-scrollbar">
                 <!-- Admin Bids List -->
                 <div id="admin-bids-list" class="space-y-3"></div>
                 <!-- Admin Users List -->
                 <div id="admin-users-list" class="space-y-3 hidden"></div>
+                <!-- Auction Settings Form -->
+                <div id="admin-auction-settings" class="hidden max-w-md mx-auto py-4 space-y-6">
+                    <div class="bg-white p-4 rounded-xl border-2 border-stone-100 space-y-4 text-right">
+                        <h3 class="font-bold text-emerald-800 border-b pb-2 flex items-center gap-2 justify-end">
+                            إعداد التوقيت والحد الأدنى <i class="ph ph-clock"></i>
+                        </h3>
+                        <div>
+                            <label class="block text-xs font-bold text-stone-500 mb-1">الحد الأدنى للمزايدة (سعر البداية)</label>
+                            <input type="number" id="setting-min-bid" class="w-full border-2 border-stone-200 rounded-xl p-2 text-right" placeholder="مثال: 50" />
+                        </div>
+                        <div class="grid grid-cols-3 gap-2" dir="ltr">
+                            <div>
+                                <label class="block text-[10px] font-bold text-stone-400 text-center">أيام</label>
+                                <input type="number" id="timer-days" class="w-full border-2 border-stone-200 rounded-xl p-2 text-center" value="0" />
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-stone-400 text-center">ساعات</label>
+                                <input type="number" id="timer-hours" class="w-full border-2 border-stone-200 rounded-xl p-2 text-center" value="0" />
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-stone-400 text-center">دقائق</label>
+                                <input type="number" id="timer-mins" class="w-full border-2 border-stone-200 rounded-xl p-2 text-center" value="0" />
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="btn-save-settings" class="flex-1 bg-emerald-600 text-white font-bold py-2 rounded-xl text-sm transition-all hover:bg-emerald-700">تطبيق الإعدادات وتشغيل الوقت</button>
+                            <button id="btn-stop-timer" class="bg-red-500 text-white font-bold px-4 py-2 rounded-xl text-sm transition-all hover:bg-red-600">إيقاف الوقت</button>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border-2 border-stone-100">
+                        <button id="btn-toggle-auction" class="w-full py-3 rounded-xl font-black text-sm transition-all shadow-md">
+                            <!-- Dynamic Text -->
+                        </button>
+                    </div>
+                </div>
+                <!-- Manual Add Form -->
+                <div id="admin-manual-form" class="hidden max-w-md mx-auto py-4 text-right">
+                    <h3 class="font-bold mb-4 flex items-center gap-2 text-emerald-800 border-b pb-2 justify-end">إضافة عضو/لجنة بشكل يدوي <i class="ph ph-user-plus"></i></h3>
+                    <form id="form-manual-add" class="space-y-3">
+                        <input type="text" id="manual-name" placeholder="الاسم الكامل" required class="w-full border-2 border-stone-200 rounded-xl p-3 outline-none focus:border-emerald-500 transition-all text-right" />
+                        <input type="tel" id="manual-phone" placeholder="رقم الهاتف (9xxxxxxx)" required class="w-full border-2 border-stone-200 rounded-xl p-3 outline-none focus:border-emerald-500 transition-all text-right" dir="ltr" />
+                        <input type="text" id="manual-pass" placeholder="الرقم السري المقترح" required class="w-full border-2 border-stone-200 rounded-xl p-3 outline-none focus:border-emerald-500 transition-all text-right" />
+                        <div class="flex items-center gap-2 py-2 justify-end">
+                            <label for="manual-is-committee" class="text-sm font-bold text-stone-700">تعيين كعضو في "لجنة الأوقاف"</label>
+                            <input type="checkbox" id="manual-is-committee" class="w-5 h-5 accent-emerald-600" />
+                        </div>
+                        <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-emerald-700 transition-all">حفظ وتفعيل الحساب</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Countdown Timer Card -->
+        <div id="countdown-container" class="hidden animate-fade-in">
+            <div class="countdown-box border-b-4 border-emerald-900">
+                <p class="text-[10px] font-bold uppercase tracking-widest opacity-70 mb-1">الوقت المتبقي لانتهاء المزاد</p>
+                <div class="flex justify-center items-center gap-4 text-2xl font-black tabular-nums" dir="ltr">
+                    <div class="flex flex-col items-center"><span id="cd-days">00</span><span class="text-[9px] font-normal opacity-60">D</span></div>
+                    <span class="opacity-30">:</span>
+                    <div class="flex flex-col items-center"><span id="cd-hours">00</span><span class="text-[9px] font-normal opacity-60">H</span></div>
+                    <span class="opacity-30">:</span>
+                    <div class="flex flex-col items-center"><span id="cd-mins">00</span><span class="text-[9px] font-normal opacity-60">M</span></div>
+                    <span class="opacity-30">:</span>
+                    <div class="flex flex-col items-center"><span id="cd-secs">00</span><span class="text-[9px] font-normal opacity-60">S</span></div>
+                </div>
             </div>
         </div>
 
@@ -94,200 +168,140 @@
         <div class="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
             <div class="bg-emerald-50 border-b border-emerald-100 p-6 text-center relative overflow-hidden">
                 <div class="absolute top-0 right-0 p-4 opacity-10"><i class="ph ph-leaf text-9xl"></i></div>
-                <h2 class="text-3xl font-extrabold text-emerald-900 mb-2 relative z-10 text-shadow">إعلان تأجير مزرعة (أوقاف المساجد)</h2>
+                <h2 class="text-3xl font-extrabold text-emerald-900 mb-2 relative z-10">إعلان تأجير مزرعة (أوقاف المساجد)</h2>
                 <div class="inline-block bg-emerald-600 text-white px-6 py-1.5 rounded-full font-bold text-lg shadow-sm relative z-10">
                     اسم الوقف: جلبة الشيع
                 </div>
             </div>
-            
-            <!-- Farm Advertisement Image -->
             <div class="w-full border-b border-stone-100 bg-stone-50 flex justify-center p-4">
-                <img 
-                    src="https://storage.googleapis.com/akm1983/%D8%A7%D9%95%D8%B9%D9%84%D8%A7%D9%86%20%D8%AA%D8%A7%D9%94%D8%AC%D9%8A%D8%B1%20%D9%85%D8%B2%D8%B1%D8%B9%D8%A9%20(%D8%A7%D9%94%D9%88%D9%82%D8%A7%D9%81%20%D8%A7%D9%84%D9%85%D8%B3%D8%A7%D8%AC%D8%AF).png" 
-                    alt="إعلان المزرعة" 
-                    class="max-h-[400px] w-auto object-contain rounded-xl shadow-sm border border-stone-200"
-                    onerror="this.style.display='none';"
-                />
+                <img src="https://storage.googleapis.com/akm1983/%D8%A7%D9%95%D8%B9%D9%84%D8%A7%D9%86%20%D8%AA%D8%A7%D9%94%D8%AC%D9%8A%D8%B1%20%D9%85%D8%B2%D8%B1%D8%B9%D8%A9%20(%D8%A7%D9%94%D9%88%D9%82%D8%A7%D9%81%20%D8%A7%D9%84%D9%85%D8%B3%D8%A7%D8%AC%D8%AF).png" alt="إعلان المزرعة" class="max-h-[400px] w-auto object-contain rounded-xl shadow-sm border border-stone-200" onerror="this.style.display='none';" />
             </div>
-
-            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                    <h3 class="text-xl font-bold border-b-2 border-emerald-500 pb-2 mb-4 inline-block">تفاصيل المزرعة</h3>
-                    <ul class="space-y-3">
-                        <li class="flex items-center gap-3"><i class="ph ph-map-pin text-emerald-600 text-xl"></i><span class="font-semibold text-stone-600">المكان:</span> بلدة منال</li>
-                        <li class="flex items-center gap-3"><i class="ph ph-clock text-emerald-600 text-xl"></i><span class="font-semibold text-stone-600">ساعات الماء:</span> ساعتين</li>
-                        <li class="flex items-center gap-3"><i class="ph ph-tree-palm text-emerald-600 text-xl"></i><span class="font-semibold text-stone-600">عدد النخيل:</span> 12 نخلة</li>
-                        <li class="flex items-center gap-3"><i class="ph ph-calendar text-emerald-600 text-xl"></i><span class="font-semibold text-stone-600">مدة العقد:</span> 10 سنوات</li>
-                        <li class="flex items-center gap-3"><i class="ph ph-gavel text-emerald-600 text-xl"></i><span class="font-semibold text-stone-600">نظام التأجير:</span> المزايدة الإلكترونية</li>
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-8 text-sm">
+                <div class="space-y-3 text-right">
+                    <h3 class="text-lg font-bold border-b-2 border-emerald-500 pb-2 mb-4 inline-block text-emerald-900">تفاصيل المزرعة</h3>
+                    <ul class="space-y-2">
+                        <li class="flex items-center gap-3"><i class="ph ph-map-pin text-emerald-600"></i> <span class="font-bold">المكان:</span> بلدة منال</li>
+                        <li class="flex items-center gap-3"><i class="ph ph-clock text-emerald-600"></i> <span class="font-bold">ساعات الماء:</span> ساعتين</li>
+                        <li class="flex items-center gap-3"><i class="ph ph-tree-palm text-emerald-600"></i> <span class="font-bold">عدد النخيل:</span> 12 نخلة</li>
+                        <li class="flex items-center gap-3"><i class="ph ph-calendar text-emerald-600"></i> <span class="font-bold">مدة العقد:</span> 10 سنوات</li>
                     </ul>
                 </div>
-                
-                <div class="bg-stone-50 p-4 rounded-xl border border-stone-100">
-                    <h3 class="font-bold text-lg mb-3 text-stone-800">حدود الوقف:</h3>
-                    <ul class="space-y-2 text-sm">
-                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">●</span> <strong>من الشمال:</strong> طريق</li>
-                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">●</span> <strong>من الجنوب:</strong> مزرعة أحمد بن عبدالله وأحمد بن يحيى</li>
-                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">●</span> <strong>من الشرق:</strong> طريق</li>
-                        <li class="flex items-start gap-2"><span class="text-emerald-500 mt-1">●</span> <strong>من الغبر:</strong> مبنى أولاد جابر</li>
-                    </ul>
+                <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                    <p class="font-bold text-sm text-emerald-800 leading-relaxed italic text-right">"يتحمل المزايد المسؤولية القانونية والمالية في حال رسو المزايدة عليه وفق القوانين والأنظمة المعمول بها والالتزام بعقد التأجير."</p>
                 </div>
             </div>
         </div>
 
         <!-- Bidding Section -->
-        <div class="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
-            <div class="p-6 bg-stone-50 flex flex-col items-center justify-center border-b border-stone-200">
-                <p class="text-stone-500 font-semibold mb-1 uppercase tracking-wider">أعلى سعر وصل له المزاد</p>
-                <div class="text-5xl font-extrabold text-emerald-700 flex items-baseline gap-2">
-                    <span id="highest-bid-display">0</span> <span class="text-2xl text-stone-400 font-medium">ريال</span>
+        <div class="bg-white rounded-2xl shadow-xl border border-stone-200 overflow-hidden">
+            <div class="p-8 bg-stone-50 flex flex-col items-center justify-center border-b border-stone-200 text-center">
+                <p class="text-stone-500 font-bold mb-1 tracking-widest uppercase text-xs">أعلى سعر معروض حالياً</p>
+                <div class="text-6xl font-black text-emerald-800 flex items-baseline gap-2">
+                    <span id="highest-bid-display" class="tabular-nums">0</span> <span class="text-2xl text-stone-400 font-medium tracking-normal">ريال</span>
                 </div>
-                <div id="auction-closed-msg" class="hidden mt-3 bg-red-100 text-red-700 px-4 py-1 rounded-full font-bold flex items-center gap-2">
-                    <i class="ph ph-x-circle text-xl"></i> تم إغلاق المزاد وتمت الترسية
-                </div>
+                <div id="auction-closed-msg" class="hidden mt-4 bg-red-600 text-white px-8 py-2 rounded-2xl font-black text-lg shadow-xl animate-pulse">تم إغلاق المزاد وتمت الترسية</div>
             </div>
 
-            <!-- Dynamic Action Area -->
-            <div class="p-6 border-b border-stone-100">
-
-                <!-- State 0: Login Form -->
-                <div id="section-login" class="max-w-md mx-auto hidden">
-                    <div class="text-center mb-6">
-                        <div class="bg-emerald-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 text-emerald-700">
-                            <i class="ph ph-sign-in text-2xl"></i>
-                        </div>
-                        <h2 class="text-xl font-bold text-stone-800">تسجيل الدخول للمزاد</h2>
-                        <p class="text-stone-500 text-sm mt-1">أدخل رقم الهاتف والرقم السري الممنوح لك</p>
-                    </div>
-                    
+            <div class="p-6 border-b border-stone-100 bg-white">
+                <!-- Login View -->
+                <div id="section-login" class="max-w-md mx-auto hidden space-y-6 text-center">
+                    <i class="ph ph-sign-in text-4xl text-emerald-700 mb-2 block"></i>
+                    <h2 class="text-xl font-black text-stone-800">تسجيل الدخول للمزايدة</h2>
                     <form id="form-login" class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-semibold mb-1">رقم الهاتف</label>
-                            <input type="tel" id="login-phone" required class="w-full border border-stone-300 rounded-lg p-3 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="مثال: 9xxxxxxx" dir="ltr" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold mb-1">الرقم السري</label>
-                            <input type="password" id="login-password" required class="w-full border border-stone-300 rounded-lg p-3 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="••••" dir="ltr" />
-                        </div>
-                        <p id="login-error" class="text-red-500 text-sm flex items-center gap-1 hidden bg-red-50 p-3 rounded-lg border border-red-200"><i class="ph ph-warning-circle text-lg"></i> <span></span></p>
-                        <button type="submit" class="w-full bg-stone-800 hover:bg-black text-white font-bold py-3 rounded-lg transition-colors shadow-sm">
-                            دخول للمزايدة
-                        </button>
+                        <input type="tel" id="login-phone" required class="w-full border-2 border-stone-100 rounded-2xl p-4 outline-none focus:border-emerald-500 transition-all text-lg font-bold text-right" placeholder="رقم الهاتف (9xxxxxxx)" dir="ltr" />
+                        <input type="password" id="login-password" required class="w-full border-2 border-stone-100 rounded-2xl p-4 outline-none focus:border-emerald-500 transition-all text-lg text-center tracking-[1em]" placeholder="••••" dir="ltr" />
+                        <p id="login-error" class="text-red-500 text-xs font-bold hidden text-center bg-red-50 p-2 rounded-lg"></p>
+                        <button type="submit" class="w-full bg-stone-800 hover:bg-black text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95">دخول للمزايدة</button>
                     </form>
-                    <button type="button" id="btn-show-register" class="w-full mt-4 text-base font-bold text-emerald-800 hover:text-emerald-900 transition-colors bg-emerald-100 hover:bg-emerald-200 py-3 rounded-lg">
-                        ليس لديك حساب؟ الحصول على العضوية
-                    </button>
+                    <button id="btn-show-register" class="w-full mt-4 text-sm font-bold text-emerald-700 hover:bg-emerald-50 py-3 rounded-xl transition-all">ليس لديك حساب؟ الحصول على العضوية</button>
                 </div>
                 
-                <!-- State 1: Register Form -->
-                <div id="section-register" class="max-w-md mx-auto hidden">
-                    <div class="text-center mb-6">
-                        <div class="bg-emerald-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2 text-emerald-700">
-                            <i class="ph ph-shield-check text-2xl"></i>
-                        </div>
-                        <h2 class="text-xl font-bold text-stone-800">طلب فتح عضوية</h2>
-                        <p class="text-stone-500 text-sm mt-1">قم بتعبئة بياناتك لفتح حساب للمزايدة</p>
-                    </div>
-                    
-                    <form id="form-register" class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-semibold mb-1">الاسم الثلاثي</label>
-                            <input type="text" id="reg-name" required class="w-full border border-stone-300 rounded-lg p-3 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="أدخل اسمك الكريم" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold mb-1">رقم الهاتف</label>
-                            <input type="tel" id="reg-phone" required class="w-full border border-stone-300 rounded-lg p-3 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="مثال: 9xxxxxxx" dir="ltr" />
-                        </div>
-                        <p id="reg-error" class="text-red-500 text-sm flex items-center gap-1 hidden bg-red-50 p-3 rounded-lg border border-red-200"><i class="ph ph-warning-circle text-lg"></i> <span></span></p>
-                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition-colors shadow-sm">
-                            إرسال الطلب للإدارة
-                        </button>
+                <!-- Register View -->
+                <div id="section-register" class="max-w-md mx-auto hidden space-y-6 text-center">
+                    <i class="ph ph-user-plus text-4xl text-emerald-700 mb-2 block"></i>
+                    <h2 class="text-xl font-black text-stone-800">طلب فتح عضوية جديدة</h2>
+                    <form id="form-register" class="space-y-4 text-right">
+                        <input type="text" id="reg-name" required class="w-full border-2 border-stone-100 rounded-2xl p-4 outline-none focus:border-emerald-500 transition-all text-right" placeholder="الاسم الثلاثي والقبيلة" />
+                        <input type="tel" id="reg-phone" required class="w-full border-2 border-stone-100 rounded-2xl p-4 outline-none focus:border-emerald-500 transition-all text-right" placeholder="رقم الهاتف (9xxxxxxx)" dir="ltr" />
+                        <p id="reg-error" class="text-red-500 text-xs font-bold hidden text-center bg-red-50 p-2 rounded-lg"></p>
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl shadow-xl transition-all">إرسال الطلب</button>
                     </form>
-                    <button type="button" id="btn-show-login" class="w-full mt-4 text-base font-bold text-stone-700 hover:text-stone-900 transition-colors bg-stone-200 hover:bg-stone-300 py-3 rounded-lg">
-                        لديك عضوية ورقم سري؟ تسجيل الدخول
-                    </button>
+                    <button id="btn-show-login" class="w-full text-xs font-bold text-stone-500 hover:text-stone-800 transition-all py-2 text-center">لديك بيانات دخول؟ تسجيل الدخول</button>
                 </div>
 
-                <!-- State 2: Pending Approval -->
+                <!-- Pending View -->
                 <div id="section-pending" class="hidden">
-                    <div class="bg-emerald-50 p-6 rounded-xl border border-emerald-200 text-center max-w-md mx-auto shadow-sm">
-                        <i class="ph ph-clock-countdown text-5xl text-emerald-500 mx-auto mb-3 block animate-pulse"></i>
-                        <h3 class="text-xl font-bold text-emerald-800 mb-2" id="pending-status-title">تم استلام طلبك بنجاح</h3>
-                        <p class="text-emerald-700 text-sm mb-4" id="pending-status-desc">
-                            حسابك الآن قيد المراجعة. بعد قبول طلبك، ستقوم الإدارة بتزويدك برقم سري لتتمكن من الدخول للمزايدة.
-                        </p>
-                        <div id="pending-approved-actions" class="hidden mb-4">
-                            <div class="bg-green-100 text-green-800 p-3 rounded-lg border border-green-200 text-sm font-bold mb-3">
-                                مبروك! تم قبول عضويتك. يرجى تسجيل الدخول باستخدام الرقم السري الخاص بك.
-                            </div>
-                        </div>
-                        <div class="flex flex-col gap-3 mt-4 pt-4 border-t border-emerald-200/50">
-                            <button type="button" id="btn-pending-to-login" class="text-sm font-bold text-emerald-700 hover:text-emerald-900 transition-colors underline decoration-2 underline-offset-4">
-                                شاشة دخول الأعضاء المسجلين
-                            </button>
-                            <button id="btn-cancel-reg" class="text-xs font-semibold text-stone-400 hover:text-stone-600 transition-colors underline">
-                                تسجيل عضو جديد (طلب آخر)
-                            </button>
+                    <div class="bg-amber-50 p-8 rounded-[40px] border-2 border-amber-200 text-center max-w-md mx-auto shadow-xl">
+                        <i class="ph ph-clock-countdown text-5xl text-amber-500 mb-4 block animate-pulse"></i>
+                        <h3 class="text-xl font-black text-amber-900 mb-2">طلبك قيد المراجعة</h3>
+                        <p class="text-amber-800 text-sm mb-6 leading-relaxed">ستقوم الإدارة بمراجعة طلبك وتزويدك برقم سري عبر الواتساب فور التفعيل.</p>
+                        <div class="flex flex-col gap-3 pt-4 border-t border-amber-200">
+                            <button id="btn-pending-to-login" class="text-sm font-black text-amber-700 underline underline-offset-4">شاشة دخول الأعضاء</button>
+                            <button id="btn-cancel-reg" class="text-xs font-bold text-stone-400 py-2">تسجيل عضو جديد (طلب آخر)</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- State 3: Active Bidding -->
-                <div id="section-bidding" class="hidden">
-                    <form id="form-bid" class="max-w-md mx-auto relative">
-                        <p id="bid-error" class="text-red-500 text-sm mb-2 text-center hidden"></p>
-                        <div class="flex flex-col gap-4">
-                            <div class="flex items-center justify-between bg-white rounded-xl border-2 border-stone-300 overflow-hidden shadow-inner">
-                                <button type="button" id="btn-decrease-bid" class="bg-stone-100 hover:bg-stone-200 text-stone-700 p-4 text-3xl font-bold transition-colors w-16 flex justify-center items-center">
-                                    -
-                                </button>
-                                <div class="text-3xl font-bold text-emerald-800 flex-1 text-center tabular-nums">
-                                    <span id="current-bid-input-display">5</span> <span class="text-lg text-stone-500 font-medium">ريال</span>
-                                </div>
-                                <button type="button" id="btn-increase-bid" class="bg-stone-100 hover:bg-stone-200 text-stone-700 p-4 text-3xl font-bold transition-colors w-16 flex justify-center items-center">
-                                    +
-                                </button>
-                            </div>
-                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl shadow-md transition-all active:scale-95 text-lg">
-                                تأكيد المزايدة بـ (<span id="btn-submit-bid-amount">5</span> ريال)
-                            </button>
+                <!-- Bidding View -->
+                <div id="section-bidding" class="hidden max-w-md mx-auto space-y-6">
+                    <div class="flex items-center justify-between bg-white rounded-3xl border-4 border-emerald-100 p-2 shadow-inner">
+                        <button id="btn-decrease-bid" class="bg-stone-100 h-16 w-16 rounded-2xl text-3xl font-black transition-all">-</button>
+                        <div class="text-center flex-1">
+                            <span id="current-bid-input-display" class="text-5xl font-black text-emerald-900 tabular-nums">0</span>
+                            <span class="block text-[10px] font-bold text-stone-400 mt-1 uppercase tracking-wider">ر.ع</span>
                         </div>
+                        <button id="btn-increase-bid" class="bg-emerald-600 text-white h-16 w-16 rounded-2xl text-3xl font-black transition-all shadow-lg hover:bg-emerald-700">+</button>
+                    </div>
+                    <form id="form-bid">
+                        <p id="bid-error" class="text-red-500 text-xs font-bold text-center mb-2 hidden bg-red-50 p-2 rounded"></p>
+                        <button type="submit" class="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-black py-5 rounded-3xl shadow-2xl transition-all transform active:scale-[0.98] text-xl">تأكيد المزايدة بـ (<span id="btn-submit-bid-amount" class="tabular-nums">0</span> ريال)</button>
                     </form>
                 </div>
-
             </div>
 
-            <!-- Bids List (Public view - Anonymous) -->
-            <div class="p-6">
-                <h3 class="font-bold text-stone-700 mb-4 flex items-center gap-2">
-                    <i class="ph ph-clock text-xl"></i> أحدث المزايدات
+            <!-- History List -->
+            <div class="p-8 bg-stone-50/30">
+                <h3 class="font-black text-stone-700 mb-6 flex items-center gap-3 text-lg border-r-4 border-stone-300 pr-4 justify-end">
+                    سجل المزايدات الأخير <i class="ph ph-clock-counter-clockwise text-2xl"></i>
                 </h3>
-                <div id="public-bids-list" class="space-y-2">
-                    <!-- Dynamic Bids go here -->
-                </div>
+                <div id="public-bids-list" class="space-y-3"></div>
             </div>
-
         </div>
 
     </main>
 
+    <!-- Report Template (Hidden) -->
+    <div id="report-template">
+        <div class="report-header">
+            <h1 style="font-size: 24px; font-weight: bold; color: #065f46; margin-bottom: 5px;">تقرير مزاد أوقاف المساجد</h1>
+            <p style="font-size: 16px;">اسم الوقف: جلبة الشيع</p>
+            <p id="report-date" style="font-size: 14px; margin-top: 5px;"></p>
+        </div>
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th>م</th>
+                    <th>اسم المزايد</th>
+                    <th>رقم الهاتف</th>
+                    <th>المبلغ (ريال)</th>
+                    <th>التاريخ والوقت</th>
+                </tr>
+            </thead>
+            <tbody id="report-table-body"></tbody>
+        </table>
+    </div>
+
     <!-- Admin Login Modal -->
-    <div id="admin-login-modal" class="fixed inset-0 bg-black/50 items-center justify-center z-50 p-4 backdrop-blur-sm hidden">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-white/20">
-            <div class="bg-stone-800 p-4 text-white flex justify-between items-center border-b border-stone-700">
-                <h3 class="font-bold flex items-center gap-2"><i class="ph ph-lock text-xl"></i> دخول الإدارة</h3>
-                <button id="btn-close-admin-modal" class="text-stone-400 hover:text-white transition-colors">
-                    <i class="ph ph-x-circle text-xl"></i>
-                </button>
+    <div id="admin-login-modal" class="fixed inset-0 bg-black/80 items-center justify-center z-[70] p-4 backdrop-blur-md hidden">
+        <div class="bg-white rounded-[40px] shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in border border-white/20">
+            <div class="bg-stone-900 p-6 text-white flex justify-between items-center">
+                <h3 class="font-black text-xl flex items-center gap-3"><i class="ph ph-lock-laminated text-2xl"></i> دخول الإدارة</h3>
+                <button id="btn-close-admin-modal" class="text-stone-400 hover:text-white transition-colors"><i class="ph ph-x-circle text-3xl"></i></button>
             </div>
-            <form id="form-admin-login" class="p-6 space-y-4">
-                <div>
-                    <label class="block text-sm font-semibold mb-1 text-stone-700">الرقم السري للوحة التحكم</label>
-                    <input type="password" id="admin-password" class="w-full border-2 border-stone-200 rounded-lg p-3 focus:ring-0 focus:border-stone-800 outline-none text-center text-lg tracking-widest" placeholder="•••••••" dir="ltr" />
-                </div>
-                <p id="admin-login-error" class="text-red-500 text-sm text-center hidden bg-red-50 p-2 rounded"></p>
-                <button type="submit" class="w-full bg-stone-800 hover:bg-stone-900 text-white font-bold py-3 rounded-lg transition-colors">
-                    تسجيل الدخول
-                </button>
+            <form id="form-admin-login" class="p-8 space-y-6 text-right">
+                <input type="password" id="admin-password" class="w-full border-2 border-stone-200 rounded-2xl p-5 focus:ring-0 focus:border-stone-900 outline-none text-center text-3xl tracking-[0.5em] font-black transition-all bg-stone-50" placeholder="••••" dir="ltr" />
+                <p id="admin-login-error" class="text-red-600 text-xs font-bold text-center hidden bg-red-50 p-2 rounded"></p>
+                <button type="submit" class="w-full bg-stone-900 hover:bg-black text-white font-black py-4 rounded-2xl shadow-xl transition-all">دخول</button>
             </form>
         </div>
     </div>
@@ -295,9 +309,8 @@
     <!-- Application Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, collection, onSnapshot, addDoc, updateDoc, serverTimestamp, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, collection, onSnapshot, addDoc, updateDoc, serverTimestamp, deleteDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Configuration
         const firebaseConfig = {
@@ -306,706 +319,423 @@
             projectId: "aldhahir-stadium",
             storageBucket: "aldhahir-stadium.firebasestorage.app",
             messagingSenderId: "561631723946",
-            appId: "1:561631723946:web:d17f9e8a95ed860b856bd3",
-            measurementId: "G-MC7EQL2GKQ"
+            appId: "1:561631723946:web:d17f9e8a95ed860b856bd3"
         };
         const appId = "aldhahir-stadium";
-        
         const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // State Variables
+        // State
         let currentUser = null;
         let appProfile = null;
         let bids = [];
-        let users = [];
-        let auctionSettings = { isActive: true };
+        let usersList = [];
+        let auctionSettings = { isActive: true, startingPrice: 50 };
         let currentBidAmount = 5;
-        let adminTab = 'bids'; 
+        let adminTab = 'tab-bids'; 
         let currentAuthView = localStorage.getItem('auth_view_preference') || 'login'; 
+        let timerInterval = null;
 
-        // DOM Elements
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const sectionRegister = document.getElementById('section-register');
-        const sectionLogin = document.getElementById('section-login');
-        const sectionPending = document.getElementById('section-pending');
-        const sectionBidding = document.getElementById('section-bidding');
-        const userInfoBadge = document.getElementById('user-info-badge');
-        const headerUserName = document.getElementById('header-user-name');
-        const headerAdminBadge = document.getElementById('header-admin-badge');
-        const btnShowAdminLogin = document.getElementById('btn-show-admin-login');
-        const adminDashboard = document.getElementById('admin-dashboard');
-        
-        // Initialization
-        const initAuth = async () => {
-            let localGuestUid = localStorage.getItem('guest_auction_uid');
-            if (localGuestUid) {
-                currentUser = { uid: localGuestUid };
-                setupListeners(currentUser.uid);
-                try { await signInAnonymously(auth); } catch(e) {}
+        // Core Functions
+        const showToast = (message) => {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-10 right-10 bg-stone-800 text-white px-8 py-4 rounded-[30px] shadow-2xl z-[100] font-black animate-fade-in flex items-center gap-3 border border-white/10';
+            toast.innerHTML = `<i class="ph ph-info text-2xl text-emerald-400"></i> <span>${message}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 5000);
+        };
+
+        const formatFullDate = (ts) => {
+            if (!ts) return "جاري التسجيل...";
+            const date = ts.toDate ? ts.toDate() : new Date(ts);
+            return date.toLocaleString('en-US', { 
+                year: 'numeric', month: '2-digit', day: '2-digit', 
+                hour: '2-digit', minute: '2-digit', hour12: true 
+            });
+        };
+
+        const updateCountdownUI = () => {
+            if (!auctionSettings.endTime || auctionSettings.timerPaused) {
+                document.getElementById('countdown-container').classList.add('hidden');
+                return;
+            }
+            
+            const now = new Date().getTime();
+            const distance = auctionSettings.endTime - now;
+            
+            if (distance < 0) {
+                document.getElementById('countdown-container').classList.add('hidden');
+                if (auctionSettings.isActive && appProfile?.isAdmin) {
+                    updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'auction'), { isActive: false });
+                }
                 return;
             }
 
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.warn("Auth Error caught. Falling back to temporary local user...", error);
-                localGuestUid = 'guest-user-' + Math.floor(Math.random() * 1000000000);
-                localStorage.setItem('guest_auction_uid', localGuestUid);
-                currentUser = { uid: localGuestUid };
-                setupListeners(currentUser.uid);
-            }
+            document.getElementById('countdown-container').classList.remove('hidden');
+            const d = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const s = Math.floor((distance % (1000 * 60)) / 1000);
+
+            document.getElementById('cd-days').textContent = d.toString().padStart(2, '0');
+            document.getElementById('cd-hours').textContent = h.toString().padStart(2, '0');
+            document.getElementById('cd-mins').textContent = m.toString().padStart(2, '0');
+            document.getElementById('cd-secs').textContent = s.toString().padStart(2, '0');
         };
 
-        // Auth Listener
-        let localGuestUidForListener = localStorage.getItem('guest_auction_uid');
-        onAuthStateChanged(auth, (user) => {
-            if (localGuestUidForListener) {
-                currentUser = { uid: localGuestUidForListener };
-                setupListeners(currentUser.uid);
-            } else if (user) {
-                currentUser = user;
-                setupListeners(user.uid);
-            } else if (!currentUser) {
-                loadingOverlay.classList.add('hidden');
-                updateUIVisibility();
-            }
-        });
-
-        initAuth();
-
-        // Listeners
-        let unsubProfile, unsubBids, unsubSettings, unsubUsers;
-
-        function setupListeners(uid) {
-            // Profile Listener
-            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', uid);
-            unsubProfile = onSnapshot(userRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    appProfile = docSnap.data();
-                } else {
-                    appProfile = null;
-                }
-                
-                if (appProfile?.isAdmin && !unsubUsers) {
-                    const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
-                    unsubUsers = onSnapshot(usersRef, (snap) => {
-                        users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                        renderAdminPanel();
-                    });
-                } else if (!appProfile?.isAdmin && unsubUsers) {
-                    unsubUsers();
-                    unsubUsers = null;
-                    users = [];
-                }
-
-                updateUIVisibility();
-                loadingOverlay.classList.add('hidden');
-            }, (error) => {
-                console.error("Firestore Permission Error", error);
-                loadingOverlay.classList.add('hidden');
-            });
-
-            // Bids Listener
-            const bidsRef = collection(db, 'artifacts', appId, 'public', 'data', 'bids');
-            unsubBids = onSnapshot(bidsRef, (snap) => {
-                bids = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                bids.sort((a, b) => b.amount - a.amount);
-                
-                const highestBid = bids.length > 0 ? bids[0].amount : 0;
-                if (currentBidAmount < highestBid + 5) {
-                    currentBidAmount = highestBid + 5;
-                } else if (bids.length === 0) {
-                    currentBidAmount = 5; 
-                }
-                
-                renderBids();
-                updateBidUI();
-                renderAdminPanel();
-            });
-
-            // Settings Listener
-            const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'auction');
-            unsubSettings = onSnapshot(settingsRef, (snap) => {
-                if (snap.exists()) {
-                    auctionSettings = snap.data();
-                } else {
-                    auctionSettings = { isActive: true };
-                }
-                updateUIVisibility();
-                renderAdminPanel();
-            });
-        }
-
-        // --- Core UI Updates ---
-
-        function updateUIVisibility() {
-            // تحقق من وجود جلسة دخول فعلية (عبر الرقم السري) أو أن الحساب إدارة
-            const isSessionAuthenticated = localStorage.getItem('is_authenticated') === 'true';
+        const updateUIVisibility = () => {
+            const isAuth = localStorage.getItem('is_authenticated') === 'true';
+            const userBadge = document.getElementById('user-info-badge');
+            const adminLoginBtn = document.getElementById('btn-show-admin-login');
             
-            if (appProfile && (appProfile.isAdmin || (appProfile.isActive === true && isSessionAuthenticated))) {
-                userInfoBadge.classList.replace('hidden', 'flex');
-                headerUserName.textContent = appProfile.name;
-                
-                if (appProfile.isAdmin) {
-                    headerAdminBadge.classList.remove('hidden');
-                    btnShowAdminLogin.classList.add('hidden');
-                } else {
-                    headerAdminBadge.classList.add('hidden');
-                    btnShowAdminLogin.classList.remove('hidden');
-                }
+            const isAdmin = appProfile?.isAdmin;
+            const isCommittee = appProfile?.isCommittee;
+
+            if (appProfile && (isAdmin || isCommittee || (appProfile.isActive && isAuth))) {
+                userBadge.classList.replace('hidden', 'flex');
+                document.getElementById('header-user-name').textContent = appProfile.name;
+                const badge = document.getElementById('header-role-badge');
+                if (isAdmin) { badge.textContent = 'إدارة'; badge.classList.remove('hidden'); }
+                else if (isCommittee) { badge.textContent = 'لجنة الأوقاف'; badge.classList.remove('hidden'); }
+                else { badge.classList.add('hidden'); }
+                adminLoginBtn.classList.add('hidden');
             } else {
-                userInfoBadge.classList.replace('flex', 'hidden');
-                btnShowAdminLogin.classList.remove('hidden');
+                userBadge.classList.replace('flex', 'hidden');
+                adminLoginBtn.classList.remove('hidden');
             }
 
-            sectionRegister.classList.add('hidden');
-            sectionLogin.classList.add('hidden');
-            sectionPending.classList.add('hidden');
-            sectionBidding.classList.add('hidden');
+            document.getElementById('section-login').classList.add('hidden');
+            document.getElementById('section-register').classList.add('hidden');
+            document.getElementById('section-pending').classList.add('hidden');
+            document.getElementById('section-bidding').classList.add('hidden');
             document.getElementById('auction-closed-msg').classList.add('hidden');
 
             if (!auctionSettings.isActive) {
                 document.getElementById('auction-closed-msg').classList.remove('hidden');
             } else {
                 if (!appProfile) {
-                    // زائر جديد
-                    if (currentAuthView === 'login') {
-                        sectionLogin.classList.remove('hidden');
-                    } else {
-                        sectionRegister.classList.remove('hidden');
-                    }
-                } else if (appProfile.isAdmin) {
-                    // المدير يرى المزاد كزائر ولكن مع لوحة تحكم بالأعلى
-                    sectionLogin.classList.add('hidden');
-                } else if (appProfile.isActive === true) {
-                    // العضو مفعل في قاعدة البيانات، نتحقق من دخوله بالجلسة
-                    if (isSessionAuthenticated) {
-                        sectionBidding.classList.remove('hidden');
-                    } else {
-                        // حساب مفعل لكن لم يسجل دخوله بعد بالرقم السري
-                        sectionLogin.classList.remove('hidden');
-                        // showToast('تم تفعيل حسابك، يرجى تسجيل الدخول بالرقم السري.');
-                    }
+                    currentAuthView === 'login' ? document.getElementById('section-login').classList.remove('hidden') : document.getElementById('section-register').classList.remove('hidden');
+                } else if (isAdmin) {
+                    // Admin view
+                } else if (isCommittee || (appProfile.isActive && isAuth)) {
+                    document.getElementById('section-bidding').classList.remove('hidden');
                 } else {
-                    // مسجل ولم تقبله الإدارة بعد أو محظور
-                    if (currentAuthView === 'login') {
-                        sectionLogin.classList.remove('hidden');
-                    } else {
-                        // إظهار صفحة الانتظار وتحديث حالتها إذا تم القبول
-                        sectionPending.classList.remove('hidden');
-                        if (appProfile.isActive === true) {
-                           document.getElementById('pending-approved-actions').classList.remove('hidden');
-                           document.getElementById('pending-status-title').textContent = 'تم تفعيل العضوية!';
-                           document.getElementById('pending-status-desc').textContent = 'يمكنك الآن تسجيل الدخول والمزايدة.';
-                        } else {
-                           document.getElementById('pending-approved-actions').classList.add('hidden');
-                           document.getElementById('pending-status-title').textContent = 'طلبك قيد المراجعة';
-                           document.getElementById('pending-status-desc').textContent = 'حسابك الآن قيد المراجعة. بعد قبول طلبك، ستقوم الإدارة بتزويدك برقم سري لتتمكن من الدخول للمزايدة.';
-                        }
-                    }
+                    currentAuthView === 'login' ? document.getElementById('section-login').classList.remove('hidden') : document.getElementById('section-pending').classList.remove('hidden');
                 }
             }
 
-            if (appProfile?.isAdmin) {
-                adminDashboard.classList.remove('hidden');
-            } else {
-                adminDashboard.classList.add('hidden');
-            }
-        }
+            document.getElementById('admin-dashboard').classList.toggle('hidden', !isAdmin && !isCommittee);
+            if (isAdmin || isCommittee) renderAdminPanel();
+        };
 
-        function showToast(msg) {
-            const toast = document.createElement('div');
-            toast.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 bg-stone-800 text-white px-6 py-3 rounded-xl shadow-2xl z-[100] text-sm font-bold border border-white/10 animate-fade-in';
-            toast.innerHTML = `<i class="ph ph-info-circle mr-2"></i> ${msg}`;
-            document.body.appendChild(toast);
-            setTimeout(() => {
-                toast.classList.add('opacity-0');
-                setTimeout(() => toast.remove(), 500);
-            }, 5000);
-        }
-
-        function renderBids() {
-            const highestBid = bids.length > 0 ? bids[0].amount : 0;
-            document.getElementById('highest-bid-display').textContent = highestBid;
-            
-            const publicBidsList = document.getElementById('public-bids-list');
-            publicBidsList.innerHTML = '';
-
-            if (bids.length === 0) {
-                publicBidsList.innerHTML = `<p class="text-stone-400 text-center py-4 bg-stone-50 rounded-lg border border-dashed border-stone-200">لم يتم تقديم أي مزايدات حتى الآن. كن أول المزايدين!</p>`;
-                return;
-            }
-
-            const recentBids = bids.slice(0, 5);
-            recentBids.forEach((bid, idx) => {
-                const isHighest = idx === 0;
-                const isMe = currentUser && bid.userId === currentUser.uid;
-                
-                const wrapperClass = isHighest ? 'bg-emerald-50 border-emerald-200 ring-2 ring-emerald-500/20' : 'bg-white border-stone-100';
-                const iconBgClass = isHighest ? 'bg-emerald-200 text-emerald-800' : 'bg-stone-100 text-stone-500';
-                const iconHtml = isHighest ? '<i class="ph ph-trophy text-xl"></i>' : '<i class="ph ph-user text-xl"></i>';
-                const nameText = isMe ? 'أنت (مزايدتك)' : 'مزايد مخفي';
-                const nameColorClass = isHighest ? 'text-emerald-800' : 'text-stone-600';
-                const amountColorClass = isHighest ? 'text-emerald-700' : 'text-stone-800';
-
-                publicBidsList.innerHTML += `
-                    <div class="flex justify-between items-center p-4 rounded-xl border ${wrapperClass} shadow-sm">
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 rounded-full flex items-center justify-center ${iconBgClass}">
-                                ${iconHtml}
-                            </div>
-                            <span class="font-bold ${nameColorClass}">${nameText}</span>
-                        </div>
-                        <span class="text-2xl font-black ${amountColorClass}">${bid.amount} <small class="text-xs font-normal opacity-50 mr-1">ريال</small></span>
-                    </div>
-                `;
+        const setupListeners = (uid) => {
+            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), (snap) => {
+                appProfile = snap.exists() ? snap.data() : null;
+                updateUIVisibility();
+                document.getElementById('loading-overlay').style.display = 'none';
             });
 
-            if (bids.length > 5) {
-                publicBidsList.innerHTML += `<p class="text-center text-xs text-stone-400 mt-4 font-semibold">يتم عرض أحدث 5 مزايدات فقط</p>`;
-            }
-        }
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'bids'), (snap) => {
+                bids = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => b.amount - a.amount);
+                const high = bids.length > 0 ? bids[0].amount : (auctionSettings.startingPrice || 0);
+                document.getElementById('highest-bid-display').textContent = high.toLocaleString('en-US');
+                if (currentBidAmount < high + 5) { currentBidAmount = high + 5; updateBidUI(); }
+                renderPublicBids();
+            });
 
-        function updateBidUI() {
-            document.getElementById('current-bid-input-display').textContent = currentBidAmount;
-            document.getElementById('btn-submit-bid-amount').textContent = currentBidAmount;
+            onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'auction'), (snap) => {
+                auctionSettings = snap.exists() ? snap.data() : { isActive: true, startingPrice: 50 };
+                document.getElementById('setting-min-bid').value = auctionSettings.startingPrice || 50;
+                updateUIVisibility();
+                if (timerInterval) clearInterval(timerInterval);
+                timerInterval = setInterval(updateCountdownUI, 1000);
+                updateCountdownUI();
+            });
 
-            const highestBid = bids.length > 0 ? bids[0].amount : 0;
-            const decreaseBtn = document.getElementById('btn-decrease-bid');
-            
-            if (currentBidAmount <= highestBid + 5) {
-                decreaseBtn.classList.replace('bg-stone-100', 'bg-stone-50');
-                decreaseBtn.classList.add('text-stone-300', 'cursor-not-allowed');
-                decreaseBtn.disabled = true;
-            } else {
-                decreaseBtn.classList.replace('bg-stone-50', 'bg-stone-100');
-                decreaseBtn.classList.remove('text-stone-300', 'cursor-not-allowed');
-                decreaseBtn.disabled = false;
-            }
-        }
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'users'), (snap) => {
+                usersList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderAdminPanel();
+            });
+        };
 
-        function renderAdminPanel() {
-            if (!appProfile?.isAdmin) return;
-
-            const btnToggleAuction = document.getElementById('btn-toggle-auction');
-            if (auctionSettings.isActive) {
-                btnToggleAuction.innerHTML = '<i class="ph ph-lock-key"></i> إغلاق المزاد';
-                btnToggleAuction.className = 'px-4 py-1.5 rounded-lg text-sm font-bold transition-colors bg-red-500 hover:bg-red-600 text-white flex items-center gap-1 shadow-sm border border-red-600';
-            } else {
-                btnToggleAuction.innerHTML = '<i class="ph ph-lock-key-open"></i> فتح المزاد';
-                btnToggleAuction.className = 'px-4 py-1.5 rounded-lg text-sm font-bold transition-colors bg-green-500 hover:bg-green-600 text-white flex items-center gap-1 shadow-sm border border-green-600';
-            }
-
-            const tabBids = document.getElementById('tab-bids');
-            const tabUsers = document.getElementById('tab-users');
-            const listBids = document.getElementById('admin-bids-list');
-            const listUsers = document.getElementById('admin-users-list');
-
-            const normalUsers = users.filter(u => !u.isAdmin);
-            const pendingCount = normalUsers.filter(u => !u.isActive).length;
-            document.getElementById('pending-users-count').textContent = pendingCount;
-
-            if (adminTab === 'bids') {
-                tabBids.classList.add('bg-stone-700', 'text-emerald-400');
-                tabUsers.classList.remove('bg-stone-700', 'text-emerald-400');
-                listBids.classList.remove('hidden');
-                listUsers.classList.add('hidden');
-
-                listBids.innerHTML = '';
-                
-                if (bids.length > 0) {
-                    listBids.innerHTML += `
-                        <div class="flex justify-end mb-3">
-                            <button onclick="window.handleClearAllBids()" class="px-3 py-1.5 rounded-lg text-sm font-bold bg-red-100 text-red-700 hover:bg-red-200 transition-colors flex items-center gap-1 shadow-sm border border-red-200">
-                                <i class="ph ph-trash"></i> تصفير جميع المزايدات
-                            </button>
-                        </div>
-                    `;
-                }
-
-                if (bids.length === 0) {
-                    listBids.innerHTML = `<p class="text-center text-stone-500 py-4">لا توجد مزايدات حتى الآن.</p>`;
-                } else {
-                    bids.forEach((bid, idx) => {
-                        const wrapperClass = idx === 0 ? 'bg-green-100 border-green-300' : 'bg-white border-stone-200 mb-2';
-                        const trophyIcon = idx === 0 ? '<i class="ph ph-trophy text-xl text-amber-500"></i>' : '';
-                        listBids.innerHTML += `
-                            <div class="flex justify-between items-center p-3 rounded-lg border ${wrapperClass}">
-                                <div>
-                                    <div class="font-bold text-lg flex items-center gap-2">
-                                        ${trophyIcon} ${bid.name}
-                                    </div>
-                                    <div class="text-sm text-stone-500 dir-ltr text-right">${bid.phone}</div>
-                                </div>
-                                <div class="flex items-center gap-4">
-                                    <div class="text-xl font-bold text-emerald-700">${bid.amount} ريال</div>
-                                    <button onclick="window.handleDeleteBid('${bid.id}')" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors border border-red-100" title="حذف المزايدة">
-                                        <i class="ph ph-trash text-lg"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    });
-                }
-            } else {
-                tabUsers.classList.add('bg-stone-700', 'text-emerald-400');
-                tabBids.classList.remove('bg-stone-700', 'text-emerald-400');
-                listUsers.classList.remove('hidden');
-                listBids.classList.add('hidden');
-
-                listUsers.innerHTML = '';
-                if (normalUsers.length === 0) {
-                    listUsers.innerHTML = `<p class="text-center text-stone-500 py-4 font-bold">لا يوجد أعضاء مسجلين.</p>`;
-                }
-                
-                normalUsers.forEach(u => {
-                    const pendingBadge = !u.isActive ? '<div class="text-xs text-amber-600 mt-1 font-bold bg-amber-50 px-2 py-0.5 rounded w-fit">بانتظار الإجراء</div>' : '';
-                    const pwdBadge = u.password ? `<div class="text-sm text-blue-600 mt-1 font-black flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded w-fit"><i class="ph ph-key"></i> السر: ${u.password}</div>` : '';
-                    
-                    let actionButtons = '';
-                    if (!u.isActive) {
-                        actionButtons = `
-                            <button onclick="window.toggleUserActivation('${u.id}', ${u.isActive})" class="px-3 py-1 rounded text-sm font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm">تفعيل</button>
-                            <button onclick="window.handleDeleteUser('${u.id}')" class="px-3 py-1 rounded text-sm font-bold bg-red-50 text-red-600 hover:bg-red-100 transition-colors border border-red-100">رفض</button>
-                        `;
+        (async function init() {
+            try {
+                await signInAnonymously(auth);
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        currentUser = user;
+                        const localUid = localStorage.getItem('guest_auction_uid') || user.uid;
+                        setupListeners(localUid);
                     } else {
-                        actionButtons = `
-                            <div class="flex flex-col gap-2">
-                                <button onclick="window.sendWhatsApp('${u.phone}', '${u.name}', '${u.password}')" class="px-3 py-1 rounded text-sm font-bold bg-green-500 text-white hover:bg-green-600 transition-colors flex items-center justify-center gap-1">
-                                    <i class="ph ph-whatsapp-logo text-lg"></i> واتساب
-                                </button>
-                                <button onclick="window.toggleUserActivation('${u.id}', ${u.isActive})" class="px-3 py-1 rounded text-sm font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200">حظر</button>
-                            </div>
-                        `;
+                        document.getElementById('loading-overlay').style.display = 'none';
                     }
-
-                    listUsers.innerHTML += `
-                        <div class="flex justify-between items-center p-3 bg-white rounded-lg border border-stone-200 mb-2 shadow-sm">
-                            <div>
-                                <div class="font-bold flex items-center text-lg">${u.name}</div>
-                                <div class="text-xs text-stone-500 dir-ltr text-right">${u.phone}</div>
-                                ${pwdBadge}
-                                ${pendingBadge}
-                            </div>
-                            <div class="flex gap-2">
-                                ${actionButtons}
-                            </div>
-                        </div>
-                    `;
                 });
+            } catch (err) {
+                document.getElementById('loading-text').innerHTML = `<span class="text-red-500">خطأ في الاتصال</span>`;
             }
-        }
+        })();
 
-        // --- Event Listeners & Actions ---
-
-        document.getElementById('btn-show-login').addEventListener('click', () => {
-            currentAuthView = 'login';
-            localStorage.setItem('auth_view_preference', 'login');
-            updateUIVisibility();
-        });
-        document.getElementById('btn-show-register').addEventListener('click', () => {
-            currentAuthView = 'register';
-            localStorage.setItem('auth_view_preference', 'register');
-            updateUIVisibility();
-        });
-        document.getElementById('btn-pending-to-login').addEventListener('click', () => {
-            currentAuthView = 'login';
-            localStorage.setItem('auth_view_preference', 'login');
-            updateUIVisibility();
-        });
-
-        // Registration
-        document.getElementById('form-register').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('reg-name').value;
-            const phone = document.getElementById('reg-phone').value;
-            const errorEl = document.getElementById('reg-error');
-
-            if (!name || !phone) {
-                errorEl.querySelector('span').textContent = 'يرجى تعبئة جميع الحقول';
-                errorEl.classList.remove('hidden');
+        const renderPublicBids = () => {
+            const list = document.getElementById('public-bids-list');
+            if (bids.length === 0) {
+                list.innerHTML = `<div class="p-8 text-center text-stone-400 font-bold border-2 border-dashed rounded-3xl border-stone-200">بانتظار المزايدة الأولى. السعر الافتتاحي: ${auctionSettings.startingPrice} ريال</div>`;
                 return;
             }
-            errorEl.classList.add('hidden');
+            const canSeeNames = appProfile?.isAdmin || appProfile?.isCommittee;
+            list.innerHTML = bids.slice(0, 10).map((b, i) => `
+                <div class="flex justify-between items-center p-5 bg-white rounded-2xl border ${i === 0 ? 'border-emerald-200 ring-4 ring-emerald-500/10 scale-[1.02]' : 'border-stone-100'} shadow-sm animate-fade-in">
+                    <div class="flex items-center gap-3">
+                        <div class="h-10 w-10 rounded-full flex items-center justify-center ${i === 0 ? 'bg-emerald-600 text-white' : 'bg-stone-100 text-stone-400'}">
+                            <i class="ph ph-${i === 0 ? 'trophy' : 'user'}"></i>
+                        </div>
+                        <span class="font-black text-stone-700">${canSeeNames ? b.name : (localStorage.getItem('guest_auction_uid') === b.userId ? 'أنت (مزايدتك)' : 'مزايد مخفي')}</span>
+                    </div>
+                    <span class="text-2xl font-black text-emerald-800 tabular-nums">${b.amount.toLocaleString('en-US')} <small class="text-xs font-normal opacity-50 mr-1">ريال</small></span>
+                </div>
+            `).join('');
+        };
 
-            try {
-                // توليد UID جديد في كل مرة لطلب العضوية للسماح لعدة أشخاص من نفس الجهاز
-                const tempUid = 'uid-' + Math.floor(Math.random() * 1000000000);
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', tempUid), {
-                    uid: tempUid,
-                    name: name,
-                    phone: phone,
-                    isActive: false, 
-                    isAdmin: false,
-                    registeredAt: serverTimestamp()
-                });
-                
-                // حفظ الـ UID في المتصفح لمراقبة الطلب
-                localStorage.setItem('guest_auction_uid', tempUid);
-                localStorage.setItem('is_authenticated', 'false'); 
-                
-                currentUser = { uid: tempUid };
-                setupListeners(tempUid);
-                
-            } catch (err) {
-                errorEl.querySelector('span').textContent = 'خطأ في الاتصال: ' + err.message;
-                errorEl.classList.remove('hidden');
-                console.error(err);
+        const updateBidUI = () => {
+            document.getElementById('current-bid-input-display').textContent = currentBidAmount.toLocaleString('en-US');
+            document.getElementById('btn-submit-bid-amount').textContent = currentBidAmount.toLocaleString('en-US');
+            const high = bids.length > 0 ? bids[0].amount : (auctionSettings.startingPrice || 0);
+            document.getElementById('btn-decrease-bid').style.opacity = currentBidAmount <= high + 5 ? '0.2' : '1';
+        };
+
+        const renderAdminPanel = () => {
+            const isAdmin = appProfile?.isAdmin;
+            const isCommittee = appProfile?.isCommittee;
+            if (!isAdmin && !isCommittee) return;
+
+            const toggleBtn = document.getElementById('btn-toggle-auction');
+            toggleBtn.innerHTML = auctionSettings.isActive ? '<i class="ph ph-lock-key"></i> إغلاق المزاد' : '<i class="ph ph-lock-key-open"></i> فتح المزاد';
+            toggleBtn.className = `w-full py-3 rounded-xl font-black shadow-lg transition-all ${auctionSettings.isActive ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`;
+
+            ['tab-bids', 'tab-users', 'tab-add-manual', 'tab-settings'].forEach(t => document.getElementById(t)?.classList.remove('bg-emerald-600', 'text-white'));
+            ['admin-bids-list', 'admin-users-list', 'admin-manual-form', 'admin-auction-settings'].forEach(c => document.getElementById(c)?.classList.add('hidden'));
+
+            if (isCommittee && !isAdmin) {
+                document.getElementById('tab-users').classList.add('hidden');
+                document.getElementById('tab-settings').classList.add('hidden');
+                document.getElementById('tab-add-manual').classList.add('hidden');
+                if (adminTab !== 'tab-bids') adminTab = 'tab-bids';
+            } else {
+                document.getElementById('tab-users').classList.remove('hidden');
+                document.getElementById('tab-settings').classList.remove('hidden');
+                document.getElementById('tab-add-manual').classList.remove('hidden');
             }
-        });
 
-        // Login
-        document.getElementById('form-login').addEventListener('submit', async (e) => {
+            document.getElementById(adminTab).classList.add('bg-emerald-600', 'text-white');
+            
+            if (adminTab === 'tab-bids') {
+                document.getElementById('admin-bids-list').classList.remove('hidden');
+                document.getElementById('admin-bids-list').innerHTML = `
+                    <div class="flex justify-between items-center mb-4">
+                        <button onclick="window.downloadPDF()" class="bg-emerald-100 text-emerald-800 px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 border border-emerald-200 hover:bg-emerald-200 transition-colors"><i class="ph ph-file-pdf text-lg"></i> تحميل تقرير PDF</button>
+                        ${isAdmin ? `<button onclick="window.clearAllBids()" class="bg-red-50 text-red-700 px-4 py-2 rounded-xl text-xs font-black border border-red-100">تصفير المزاد</button>` : ''}
+                    </div>
+                    ${bids.map(b => `
+                        <div class="flex justify-between items-center p-3 bg-white rounded-xl border mb-2 shadow-sm">
+                            <div class="text-right">
+                                <p class="font-black text-sm">${b.name}</p>
+                                <p class="text-[10px] text-stone-400 font-bold">${b.phone} - ${formatFullDate(b.timestamp)}</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="font-black text-emerald-700 text-lg">${b.amount.toLocaleString('en-US')} ريال</span>
+                                ${isAdmin ? `<button onclick="window.deleteBid('${b.id}')" class="text-red-400 hover:text-red-600 p-2"><i class="ph ph-trash-simple text-xl"></i></button>` : ''}
+                            </div>
+                        </div>
+                    `).join('')}`;
+            } else if (adminTab === 'tab-users') {
+                if (!isAdmin) return;
+                document.getElementById('admin-users-list').classList.remove('hidden');
+                const normal = usersList.filter(u => !u.isAdmin);
+                document.getElementById('admin-users-list').innerHTML = normal.map(u => `
+                    <div class="flex justify-between items-center p-4 bg-white rounded-xl border mb-2 shadow-sm text-right">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 justify-end">
+                                ${u.isCommittee ? '<span class="bg-blue-100 text-blue-800 text-[9px] px-1.5 py-0.5 rounded font-black">عضو لجنة</span>' : ''}
+                                <p class="font-black text-stone-800">${u.name}</p>
+                            </div>
+                            <p class="text-xs font-bold text-stone-400 tracking-wider">${u.phone}</p>
+                            ${u.password ? `<p class="text-xs font-black text-blue-600 mt-1 bg-blue-50 px-2 py-0.5 rounded w-fit mr-auto">سر: ${u.password}</p>` : ''}
+                        </div>
+                        <div class="flex flex-wrap gap-2 items-center justify-end ml-4">
+                            ${!u.isActive 
+                                ? `<button onclick="window.activateUser('${u.id}')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-black shadow-md">تفعيل</button>`
+                                : `<div class="flex gap-1">
+                                     <button onclick="window.updatePassword('${u.id}')" class="bg-blue-50 text-blue-600 p-2 rounded-lg border border-blue-100"><i class="ph ph-key"></i></button>
+                                     <button onclick="window.toggleCommittee('${u.id}', ${u.isCommittee})" class="p-2 rounded-lg border ${u.isCommittee ? 'bg-amber-100 text-amber-700' : 'bg-stone-50'}">${u.isCommittee ? '<i class="ph ph-user-minus"></i>' : '<i class="ph ph-users-three"></i>'}</button>
+                                     <button onclick="window.sendWhatsApp('${u.phone}', '${u.name}', '${u.password}')" class="bg-green-500 text-white p-2 rounded-lg"><i class="ph ph-whatsapp-logo text-xl"></i></button>
+                                   </div>`}
+                            <button onclick="window.deleteUser('${u.id}')" class="text-stone-300 hover:text-red-500 p-2"><i class="ph ph-trash text-xl"></i></button>
+                        </div>
+                    </div>
+                `).join('');
+            } else if (adminTab === 'tab-settings') {
+                if (!isAdmin) return;
+                document.getElementById('admin-auction-settings').classList.remove('hidden');
+                document.getElementById('btn-stop-timer').textContent = auctionSettings.timerPaused ? 'استئناف الوقت' : 'إيقاف الوقت';
+            } else if (adminTab === 'tab-add-manual') {
+                if (!isAdmin) return;
+                document.getElementById('admin-manual-form').classList.remove('hidden');
+            }
+        };
+
+        // Handlers
+        document.getElementById('btn-show-login').onclick = () => setAuthView('login');
+        document.getElementById('btn-show-register').onclick = () => setAuthView('register');
+        document.getElementById('btn-pending-to-login').onclick = () => setAuthView('login');
+        document.getElementById('btn-cancel-reg').onclick = () => { localStorage.removeItem('guest_auction_uid'); localStorage.setItem('auth_view_preference', 'register'); window.location.reload(); };
+
+        document.getElementById('form-register').onsubmit = async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('reg-name').value.trim();
+            const phone = document.getElementById('reg-phone').value.trim();
+            try {
+                const uid = `u-${Date.now()}`;
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), { uid, name, phone, isActive: false, isAdmin: false, isCommittee: false, registeredAt: serverTimestamp() });
+                localStorage.setItem('guest_auction_uid', uid);
+                localStorage.setItem('is_authenticated', 'false');
+                setAuthView('pending');
+                showToast("تم إرسال طلبك");
+            } catch(e) { showToast("خطأ في الاتصال"); }
+        };
+
+        document.getElementById('form-login').onsubmit = async (e) => {
             e.preventDefault();
             const phone = document.getElementById('login-phone').value.trim();
             const pass = document.getElementById('login-password').value.trim();
-            const errorEl = document.getElementById('login-error');
-
+            const err = document.getElementById('login-error');
+            err.classList.add('hidden');
             try {
-                const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
-                const snapshot = await getDocs(usersRef);
-                let foundUser = null;
+                const snap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'users'));
+                let found = null;
+                snap.forEach(d => { const data = d.data(); if (data.phone === phone && data.password === pass && !data.isAdmin) found = data; });
+                if (found) {
+                    if (!found.isActive && !found.isCommittee) { err.textContent = "حسابك غير مفعل."; err.classList.remove('hidden'); }
+                    else { localStorage.setItem('guest_auction_uid', found.uid); localStorage.setItem('is_authenticated', 'true'); window.location.reload(); }
+                } else { err.textContent = "البيانات غير صحيحة."; err.classList.remove('hidden'); }
+            } catch(e) { showToast("فشل الاتصال"); }
+        };
 
-                snapshot.forEach(docSnap => {
-                    const data = docSnap.data();
-                    if (data.phone === phone && data.password === pass && !data.isAdmin) {
-                        foundUser = data;
-                    }
-                });
-
-                if (foundUser) {
-                    if (!foundUser.isActive) {
-                        errorEl.querySelector('span').textContent = 'عذراً، حسابك محظور حالياً.';
-                        errorEl.classList.remove('hidden');
-                        return;
-                    }
-                    
-                    localStorage.setItem('guest_auction_uid', foundUser.uid);
-                    localStorage.setItem('is_authenticated', 'true');
-                    window.location.reload(); 
-                } else {
-                    errorEl.querySelector('span').textContent = 'رقم الهاتف أو الرقم السري غير صحيح.';
-                    errorEl.classList.remove('hidden');
-                }
-            } catch (err) {
-                errorEl.querySelector('span').textContent = 'حدث خطأ في الاتصال.';
-                errorEl.classList.remove('hidden');
-                console.error(err);
-            }
-        });
-
-        // Logout
-        document.getElementById('btn-user-logout').addEventListener('click', () => {
-            localStorage.removeItem('guest_auction_uid');
-            localStorage.removeItem('is_authenticated');
-            localStorage.setItem('auth_view_preference', 'login');
-            window.location.reload();
-        });
-
-        // "تسجيل عضو جديد"
-        document.getElementById('btn-cancel-reg').addEventListener('click', () => {
-            localStorage.removeItem('guest_auction_uid');
-            localStorage.removeItem('is_authenticated');
-            localStorage.setItem('auth_view_preference', 'register');
-            window.location.reload(); 
-        });
-
-        // Bidding Actions
-        document.getElementById('btn-increase-bid').addEventListener('click', () => {
-            currentBidAmount += 5;
-            updateBidUI();
-        });
-
-        document.getElementById('btn-decrease-bid').addEventListener('click', () => {
-            const highestBid = bids.length > 0 ? bids[0].amount : 0;
-            if (currentBidAmount > highestBid + 5) {
-                currentBidAmount -= 5;
-                updateBidUI();
-            }
-        });
-
-        document.getElementById('form-bid').addEventListener('submit', async (e) => {
+        document.getElementById('form-manual-add').onsubmit = async (e) => {
             e.preventDefault();
-            const errorEl = document.getElementById('bid-error');
-            const highestBid = bids.length > 0 ? bids[0].amount : 0;
+            const uid = `manual-${Date.now()}`;
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', uid), {
+                uid, name: document.getElementById('manual-name').value, phone: document.getElementById('manual-phone').value,
+                password: document.getElementById('manual-pass').value, isActive: true, isCommittee: document.getElementById('manual-is-committee').checked, isAdmin: false, registeredAt: serverTimestamp()
+            });
+            showToast("تمت الإضافة بنجاح");
+            e.target.reset(); adminTab = 'tab-users'; renderAdminPanel();
+        };
 
-            if (!appProfile || appProfile.isActive !== true || localStorage.getItem('is_authenticated') !== 'true') {
-                errorEl.textContent = `عذراً، يجب تسجيل الدخول أولاً للمزايدة.`;
-                errorEl.classList.remove('hidden');
-                return;
-            }
+        document.getElementById('btn-save-settings').onclick = async () => {
+            const d = parseInt(document.getElementById('timer-days').value) || 0;
+            const h = parseInt(document.getElementById('timer-hours').value) || 0;
+            const m = parseInt(document.getElementById('timer-mins').value) || 0;
+            const price = parseInt(document.getElementById('setting-min-bid').value) || 50;
+            const totalMs = (d * 24 * 60 * 60 * 1000) + (h * 60 * 60 * 1000) + (m * 60 * 1000);
+            const endTime = new Date().getTime() + totalMs;
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'auction'), { endTime, timerPaused: false, startingPrice: price, isActive: true });
+            showToast("تم التفعيل بنجاح");
+        };
 
-            if (isNaN(currentBidAmount) || currentBidAmount < highestBid + 5 || currentBidAmount % 5 !== 0) {
-                errorEl.textContent = `يجب أن يكون المبلغ من مضاعفات الـ 5 وأعلى من المزايدة الحالية.`;
-                errorEl.classList.remove('hidden');
-                return;
-            }
-            errorEl.classList.add('hidden');
+        document.getElementById('btn-stop-timer').onclick = async () => {
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'auction'), { timerPaused: !auctionSettings.timerPaused });
+        };
 
-            try {
-                const bidsRef = collection(db, 'artifacts', appId, 'public', 'data', 'bids');
-                await addDoc(bidsRef, {
-                    amount: currentBidAmount,
-                    userId: currentUser.uid,
-                    name: appProfile.name,
-                    phone: appProfile.phone,
-                    timestamp: serverTimestamp()
-                });
-                showToast("تم إرسال مزايدتك بنجاح!");
-            } catch (err) {
-                errorEl.textContent = 'حدث خطأ أثناء تقديم المزايدة.';
-                errorEl.classList.remove('hidden');
-            }
-        });
-
-        // Admin Auth Modal
-        const adminModal = document.getElementById('admin-login-modal');
-        btnShowAdminLogin.addEventListener('click', () => {
-            adminModal.classList.replace('hidden', 'flex');
-        });
-        document.getElementById('btn-close-admin-modal').addEventListener('click', () => {
-            adminModal.classList.replace('flex', 'hidden');
-            document.getElementById('admin-login-error').classList.add('hidden');
-            document.getElementById('admin-password').value = '';
-        });
-
-        // Admin Secure Login
-        document.getElementById('form-admin-login').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const pass = document.getElementById('admin-password').value;
-            const errorEl = document.getElementById('admin-login-error');
-
-            if (pass === 'akm1983') {
-                try {
-                    const adminUid = 'admin-akm1983-secure-uid'; 
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', adminUid), {
-                        uid: adminUid,
-                        name: 'الإدارة',
-                        phone: '-',
-                        isActive: true,
-                        isAdmin: true,
-                        registeredAt: serverTimestamp()
-                    }, { merge: true });
-                    
-                    localStorage.setItem('guest_auction_uid', adminUid);
-                    localStorage.setItem('is_authenticated', 'true');
-                    window.location.reload();
-                } catch (err) {
-                    errorEl.textContent = 'حدث خطأ في تفعيل الإدارة.';
-                    errorEl.classList.remove('hidden');
-                }
-            } else {
-                errorEl.textContent = 'الرقم السري للإدارة غير صحيح';
-                errorEl.classList.remove('hidden');
-            }
-        });
-
-        document.getElementById('tab-bids').addEventListener('click', () => {
-            adminTab = 'bids';
-            renderAdminPanel();
-        });
+        document.getElementById('btn-increase-bid').onclick = () => { currentBidAmount += 5; updateBidUI(); };
+        document.getElementById('btn-decrease-bid').onclick = () => { 
+            const high = bids.length > 0 ? bids[0].amount : (auctionSettings.startingPrice || 0);
+            if (currentBidAmount > high + 5) { currentBidAmount -= 5; updateBidUI(); } 
+        };
         
-        document.getElementById('tab-users').addEventListener('click', () => {
-            adminTab = 'users';
-            renderAdminPanel();
-        });
-
-        document.getElementById('btn-toggle-auction').addEventListener('click', async () => {
+        document.getElementById('form-bid').onsubmit = async (e) => {
+            e.preventDefault();
+            const high = bids.length > 0 ? bids[0].amount : (auctionSettings.startingPrice || 0);
+            if (currentBidAmount <= high) return showToast("يجب أن تكون المزايدة أعلى");
             try {
-                const newState = !auctionSettings.isActive;
-                const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'auction');
-                await setDoc(settingsRef, { isActive: newState }, { merge: true });
-            } catch (err) {
-                alert("حدث خطأ أثناء محاولة تغيير حالة المزاد.");
-            }
-        });
-
-        // Admin Safe Exit
-        document.getElementById('btn-exit-admin').addEventListener('click', () => {
-            localStorage.removeItem('guest_auction_uid');
-            localStorage.removeItem('is_authenticated');
-            localStorage.setItem('auth_view_preference', 'login');
-            window.location.reload();
-        });
-
-        // Window Expose Functions
-        window.toggleUserActivation = async (userId, currentState) => {
-            try {
-                const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', userId);
-                if (!currentState) { 
-                    const pwd = prompt('أدخل رقماً سرياً (كلمة مرور) لتعطيه لهذا العضو ليتمكن من الدخول لاحقاً:');
-                    if (pwd === null) return; 
-                    if (pwd.trim() === '') {
-                        alert('يجب إدخال رقم سري لكي يتمكن العضو من الدخول!');
-                        return;
-                    }
-                    await updateDoc(userRef, { isActive: true, password: pwd.trim() });
-                    
-                    // البحث عن بيانات المستخدم لإرسال واتساب
-                    const found = users.find(u => u.id === userId);
-                    if (found) {
-                        if (confirm('تم التفعيل. هل تريد إرسال الرقم السري للعضو عبر الواتساب؟')) {
-                            window.sendWhatsApp(found.phone, found.name, pwd.trim());
-                        }
-                    }
-                } else { 
-                    await updateDoc(userRef, { isActive: false });
-                }
-            } catch (err) {
-                console.error(err);
-            }
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'bids'), {
+                    amount: currentBidAmount, userId: localStorage.getItem('guest_auction_uid'), name: appProfile.name, phone: appProfile.phone, timestamp: serverTimestamp()
+                });
+                showToast("تمت المزايدة بنجاح");
+            } catch(e) { showToast("خطأ في المزايدة"); }
         };
 
+        document.getElementById('btn-show-admin-login').onclick = () => document.getElementById('admin-login-modal').classList.replace('hidden', 'flex');
+        document.getElementById('btn-close-admin-modal').onclick = () => document.getElementById('admin-login-modal').classList.replace('flex', 'hidden');
+        document.getElementById('form-admin-login').onsubmit = async (e) => {
+            e.preventDefault();
+            if (document.getElementById('admin-password').value === 'akm1983') {
+                const adminUid = 'admin-akm1983-secure-uid';
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', adminUid), { uid: adminUid, name: 'akm1983', phone: '-', isActive: true, isAdmin: true }, { merge: true });
+                localStorage.setItem('guest_auction_uid', adminUid); localStorage.setItem('is_authenticated', 'true');
+                window.location.reload();
+            } else { document.getElementById('admin-login-error').textContent = "خطأ"; document.getElementById('admin-login-error').classList.remove('hidden'); }
+        };
+
+        document.getElementById('btn-user-logout').onclick = () => { localStorage.removeItem('guest_auction_uid'); localStorage.removeItem('is_authenticated'); window.location.reload(); };
+        document.getElementById('btn-exit-admin').onclick = () => { localStorage.removeItem('guest_auction_uid'); localStorage.removeItem('is_authenticated'); window.location.reload(); };
+
+        window.activateUser = async (id) => {
+            const pwd = prompt("أدخل الرقم السري للعضو:");
+            if (!pwd) return;
+            const u = usersList.find(x => x.id === id);
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id), { isActive: true, password: pwd.trim() });
+            window.sendWhatsApp(u.phone, u.name, pwd.trim());
+        };
+
+        window.updatePassword = async (id) => {
+            const pwd = prompt("تغيير الرقم السري:");
+            if (!pwd) return;
+            const u = usersList.find(x => x.id === id);
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id), { password: pwd.trim() });
+            showToast("تم التحديث");
+            if (confirm("إرسال الجديد للعضو؟")) window.sendWhatsApp(u.phone, u.name, pwd.trim());
+        };
+
+        window.toggleCommittee = async (id, current) => { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id), { isCommittee: !current }); };
+        window.deleteUser = async (id) => { if (confirm("حذف؟")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', id)); };
+        window.deleteBid = async (id) => { if (confirm("حذف؟")) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bids', id)); };
+        window.clearAllBids = async () => { if (confirm("تصفير؟")) { const s = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'bids')); s.forEach(async (d) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bids', d.id))); } };
+        
         window.sendWhatsApp = (phone, name, password) => {
-            // تنظيف رقم الهاتف (إزالة المسافات والأصفار البادئة إذا وجدت لإضافة مفتاح الدولة 968)
-            let cleanPhone = phone.replace(/\s+/g, '');
-            if (!cleanPhone.startsWith('968') && cleanPhone.length === 8) {
-                cleanPhone = '968' + cleanPhone;
-            }
-            
-            const message = `مرحباً بك الفاضل/ ${name}،%0Aلقد تم تفعيل عضويتك في مزاد أوقاف المساجد بنجاح.%0A%0Aبيانات الدخول الخاصة بك:%0Aرقم الهاتف: ${phone}%0Aالرقم السري: ${password}%0A%0Aيمكنك الآن الدخول والمزايدة عبر الرابط.%0Aشكراً لك.`;
-            
-            const url = `https://wa.me/${cleanPhone}?text=${message}`;
-            window.open(url, '_blank');
+            const clean = phone.replace(/\D/g, '');
+            const phoneW = clean.length === 8 ? '968' + clean : clean;
+            const msg = `مرحباً بك الفاضل/ ${name}،%0Aتم تفعيل عضويتك في مزاد أوقاف المساجد (جلبة الشيع) بنجاح.%0A%0Aبيانات الدخول:%0Aرقم الهاتف: ${phone}%0Aالرقم السري: ${password}%0A%0Aرابط المزاد المباشر:%0A${window.location.href}%0A%0Aشروط المزايدة:%0Aيقر المزايد بتحمل المسؤولية القانونية والمالية الكاملة في حال رسو المزايدة عليه وفق القوانين والأنظمة المعمول بها والالتزام بعقد التأجير.%0Aشكراً لك.`;
+            window.open(`https://wa.me/${phoneW}?text=${msg}`, '_blank');
         };
 
-        window.handleDeleteUser = async (userId) => {
-            if(!confirm('هل أنت متأكد من رفض العضو وحذف بياناته نهائياً؟')) return;
-            try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', userId));
-            } catch (err) {
-                console.error(err);
-            }
+        window.downloadPDF = () => {
+            document.getElementById('report-date').textContent = "تاريخ التقرير: " + new Date().toLocaleString('ar-OM');
+            document.getElementById('report-table-body').innerHTML = bids.map((b, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${b.name}</td>
+                    <td>${b.phone}</td>
+                    <td style="font-weight:bold">${b.amount.toLocaleString('en-US')}</td>
+                    <td>${formatFullDate(b.timestamp)}</td>
+                </tr>
+            `).join('');
+            const el = document.getElementById('report-template');
+            el.style.display = 'block';
+            html2pdf().from(el).set({ 
+                margin: 10, 
+                filename: `تقرير_المزاد_${Date.now()}.pdf`, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2 }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+            }).save().then(() => el.style.display = 'none');
         };
 
-        window.handleDeleteBid = async (bidId) => {
-            if(!confirm('هل أنت متأكد من حذف هذه المزايدة؟')) return;
-            try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bids', bidId));
-            } catch (err) {
-                console.error(err);
-            }
-        };
-
-        window.handleClearAllBids = async () => {
-            if(!confirm('تنبيه: سيتم مسح سجل المزايدات بالكامل وتصفير المزاد. استمرار؟')) return;
-            try {
-                const bidsRef = collection(db, 'artifacts', appId, 'public', 'data', 'bids');
-                const snap = await getDocs(bidsRef);
-                for (const d of snap.docs) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bids', d.id));
-                }
-            } catch (err) {
-                console.error(err);
-            }
-        };
+        const setAuthView = (v) => { currentAuthView = v; localStorage.setItem('auth_view_preference', v); updateUIVisibility(); };
+        document.getElementById('btn-toggle-auction').onclick = async () => { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'auction'), { isActive: !auctionSettings.isActive }, { merge: true }); };
+        document.getElementById('tab-bids').onclick = () => { adminTab = 'tab-bids'; renderAdminPanel(); };
+        document.getElementById('tab-users').onclick = () => { adminTab = 'tab-users'; renderAdminPanel(); };
+        document.getElementById('tab-settings').onclick = () => { adminTab = 'tab-settings'; renderAdminPanel(); };
+        document.getElementById('tab-add-manual').onclick = () => { adminTab = 'tab-add-manual'; renderAdminPanel(); };
 
     </script>
 </body>
